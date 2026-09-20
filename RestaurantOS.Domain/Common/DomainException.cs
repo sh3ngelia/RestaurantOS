@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿namespace RestaurantOS.Domain.Common;
 
-namespace RestaurantOS.Domain.Common
+public class DomainException : Exception
 {
-    internal class DomainException
+    public DomainException(string message) : base(message)
     {
     }
 }
