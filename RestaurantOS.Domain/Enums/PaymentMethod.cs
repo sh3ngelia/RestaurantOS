@@ -1,0 +1,8 @@
+﻿namespace RestaurantOS.Domain.Enums;
+
+public enum PaymentMethod
+{
+    Cash = 1,
+    Card = 2,
+    Split = 3
+}
