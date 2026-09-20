@@ -1,9 +1,8 @@
-﻿namespace RestaurantOS.Domain.Enums;
-
-public enum ReservationStatus
+﻿public enum ReservationStatus
 {
-    Confirmed = 1,
-    Arrived = 2,
-    Cancelled = 3,
-    NoShow = 4
+    Pending = 1,
+    Confirmed = 2,
+    Arrived = 3,
+    Cancelled = 4,
+    NoShow = 5
 }
