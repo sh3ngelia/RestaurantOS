@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="docker-compose.yml" />
+  </Folder>
   <Project Path="RestaurantOS.API/RestaurantOS.API.csproj" />
   <Project Path="RestaurantOS.Application/RestaurantOS.Application.csproj" />
   <Project Path="RestaurantOS.Domain/RestaurantOS.Domain.csproj" />
