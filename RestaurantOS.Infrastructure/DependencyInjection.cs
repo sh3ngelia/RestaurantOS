@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RestaurantOS.Application.Common.Interfaces;
 using RestaurantOS.Infrastructure.Authentication;
 using RestaurantOS.Infrastructure.Persistence;
+using RestaurantOS.Infrastructure.Persistence.Repositories;
 
 namespace RestaurantOS.Infrastructure;
 
@@ -24,6 +25,11 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        
+        services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+
+        services.AddScoped<IUserRepository, UserRepository>();
+
         return services;
     }
 }

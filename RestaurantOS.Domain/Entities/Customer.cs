@@ -24,7 +24,7 @@ public class Customer : BaseEntity
             throw new DomainException("Password hash cannot be empty");
         FirstName = firstName;
         LastName = lastName;
-        Email = email;
+        Email = email.Trim().ToLowerInvariant();
         PhoneNumber = phoneNumber;
         PasswordHash = passwordHash;
         IsActive = true;
@@ -36,7 +36,7 @@ public class Customer : BaseEntity
     {
         ValidateEmail(email);
         ValidatePhoneNumber(phoneNumber);
-        Email = email;
+        Email = email.Trim().ToLowerInvariant();
         PhoneNumber = phoneNumber;
         MarkAsUpdated();
     }

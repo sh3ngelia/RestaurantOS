@@ -28,7 +28,7 @@ public class User : BaseEntity
         
         FirstName = firstName;
         LastName = lastName;
-        Email = email;
+        Email = email.Trim().ToLowerInvariant();
         PasswordHash = passwordHash;
         Role = role;
         IsActive = true;
