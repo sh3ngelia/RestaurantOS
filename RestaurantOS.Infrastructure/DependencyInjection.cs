@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RestaurantOS.Application.Common.Interfaces;
+using RestaurantOS.Infrastructure.Authentication;
 using RestaurantOS.Infrastructure.Persistence;
 
 namespace RestaurantOS.Infrastructure;
@@ -18,6 +20,8 @@ public static class DependencyInjection
 
         services.AddDbContext<RestaurantDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
 
         return services;
     }
