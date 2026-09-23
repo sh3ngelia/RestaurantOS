@@ -1,3 +1,4 @@
+using RestaurantOS.Infrastructure;
 
 namespace RestaurantOS.API
 {
@@ -12,6 +13,8 @@ namespace RestaurantOS.API
             builder.Services.AddControllers();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
+
+            builder.Services.AddInfrastructure(builder.Configuration);
 
             var app = builder.Build();
 

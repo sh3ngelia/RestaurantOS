@@ -25,7 +25,7 @@ public class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
 
         builder.Property(mi => mi.Price)
             .IsRequired()
-            .HasPrecision(18, 2);
+            .HasPrecision(10, 2);
 
         builder.HasOne(m => m.Category)
             .WithMany()
