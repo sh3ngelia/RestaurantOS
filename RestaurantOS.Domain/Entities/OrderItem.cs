@@ -10,6 +10,7 @@ public class OrderItem : BaseEntity
     public MenuItem MenuItem { get; private set; }
     public int Quantity { get; private set; }
     public decimal UnitPrice { get; private set; }
+    public int? SeatNumber { get; private set; }
     public OrderItemStatus Status { get; private set; }
     public string? Notes { get; private set; }
 
@@ -18,14 +19,16 @@ public class OrderItem : BaseEntity
         Guid menuItemId, 
         int quantity, 
         decimal unitPrice,
-        string? notes = null)
+        string? notes = null,
+        int? seatNumber = null)
     {
-        Validate(quantity, unitPrice);
+        Validate(quantity, unitPrice, seatNumber);
         OrderId = orderId;
         MenuItemId = menuItemId;
         Quantity = quantity;
         UnitPrice = unitPrice;
         Notes = notes;
+        SeatNumber = seatNumber;
         Status = OrderItemStatus.Pending;
     }
 
@@ -78,10 +81,11 @@ public class OrderItem : BaseEntity
         MarkAsUpdated();
     }
 
-    private static void Validate(int quantity, decimal unitPrice)
+    private static void Validate(int quantity, decimal unitPrice, int? seatNumber)
     {
         ValidateQuantity(quantity);
         ValidateUnitPrice(unitPrice);
+        ValidateSeatNumber(seatNumber); 
     }
 
     private static void ValidateQuantity(int quantity)
@@ -94,5 +98,11 @@ public class OrderItem : BaseEntity
     {
         if (unitPrice <= 0)
             throw new DomainException("Unit price must be greater than zero");
+    }
+
+    private static void ValidateSeatNumber(int? seatNumber)
+    {
+        if (seatNumber.HasValue && seatNumber.Value <= 0)
+            throw new DomainException("Seat number must be greater than zero");
     }
 }

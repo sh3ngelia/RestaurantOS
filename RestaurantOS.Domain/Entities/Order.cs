@@ -34,11 +34,11 @@ public class Order : BaseEntity
     .Where(i => i.Status != OrderItemStatus.Cancelled)
     .Sum(i => i.TotalPrice);
 
-    public void AddItem(Guid menuItemId, int quantity, decimal unitPrice, string? notes = null)
+    public void AddItem(Guid menuItemId, int quantity, decimal unitPrice, int? seatNumber = null, string? notes = null)
     {
         if (Status != OrderStatus.Opened)
             throw new DomainException("Items can only be added to orders that are in progress");
-        var orderItem = new OrderItem(Id, menuItemId, quantity, unitPrice, notes);
+        var orderItem = new OrderItem(Id, menuItemId, quantity, unitPrice, notes, seatNumber);
         _items.Add(orderItem);
         MarkAsUpdated();
     }
