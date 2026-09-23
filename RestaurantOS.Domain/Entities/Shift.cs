@@ -12,6 +12,7 @@ public class Shift : BaseEntity
     public DateTime? ActualEndTime { get; private set; }
     public string? Notes { get; private set; }
 
+    private Shift() { }
     public Shift(Guid userId, DateTime startTime, DateTime endTime, string? notes = null)
     {
         ValidateShiftTimes(startTime, endTime);

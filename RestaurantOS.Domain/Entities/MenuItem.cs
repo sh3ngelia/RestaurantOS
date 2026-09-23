@@ -14,6 +14,7 @@ public class MenuItem : BaseEntity
     public bool IsAvailable { get; private set; }
     public int PreparationTimeInMinutes { get; private set; }
 
+    private MenuItem() { }
     public MenuItem(string name, string? description, decimal price, Guid categoryId, PreparationStation preparationStation, int preparationTimeInMinutes)
     {
         Validate(name, price, preparationTimeInMinutes);

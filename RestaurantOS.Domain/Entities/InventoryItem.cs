@@ -12,6 +12,7 @@ public class InventoryItem : BaseEntity
     public decimal CostPerUnit { get; private set; }
     public bool IsActive { get; private set; }
 
+    private InventoryItem() { }
     public InventoryItem(string name, MeasurementUnit unit, decimal currentQuantity, decimal minimumQuantity, decimal costPerUnit)
     {
         Validate(name, currentQuantity, minimumQuantity, costPerUnit);

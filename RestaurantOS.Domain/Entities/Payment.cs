@@ -13,6 +13,7 @@ public class Payment : BaseEntity
     public DateTime PaidAt { get; private set; }
     public string? Notes { get; private set; }
 
+    private Payment() { }
     public Payment(Guid orderId, decimal amount, PaymentMethod method, Guid? receivedByUserId = null, string? notes = null)
     {
         ValidateAmount(amount);

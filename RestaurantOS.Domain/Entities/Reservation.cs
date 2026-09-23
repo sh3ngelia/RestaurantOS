@@ -16,6 +16,7 @@ public class Reservation : BaseEntity
     public Guid? CreatedByUserId { get; private set; }
     public Guid? CustomerId { get; private set; }
 
+    private Reservation() { }
     public Reservation(
         Guid tableId,
         string guestName,

@@ -14,7 +14,8 @@ public class OrderItem : BaseEntity
     public OrderItemStatus Status { get; private set; }
     public string? Notes { get; private set; }
 
-    internal OrderItem(
+    private OrderItem() { }
+    public OrderItem(
         Guid orderId, 
         Guid menuItemId, 
         int quantity, 

@@ -11,6 +11,7 @@ public class Customer : BaseEntity
     public string PasswordHash { get; private set; }
     public bool IsActive { get; private set; }
 
+    private Customer() { }
     public Customer(string firstName, string lastName, string email, string phoneNumber, string passwordHash)
     {
         if (string.IsNullOrWhiteSpace(firstName))

@@ -12,6 +12,7 @@ public class User : BaseEntity
     public UserRole Role { get; private set; }
     public bool IsActive { get; private set; }
 
+    private User() { }
     public User(string firstName, string lastName, string email, string passwordHash, UserRole role)
     {
         if (string.IsNullOrWhiteSpace(firstName))

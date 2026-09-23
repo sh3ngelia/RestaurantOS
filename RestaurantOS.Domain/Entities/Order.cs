@@ -16,6 +16,7 @@ public class Order : BaseEntity
     private readonly List<OrderItem> _items = new();
     public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
 
+    private Order() { }
     public Order(string orderNumber, OrderType type, Guid? tableId = null, Guid? waiterId = null, Guid? customerId = null, string? deliveryAddress = null, string? notes = null)
     {
         ValidateOrderNumber(orderNumber);

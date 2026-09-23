@@ -9,6 +9,7 @@ public class Table: BaseEntity
     public int Capacity { get; private set; }
     public TableStatus Status { get; private set; }
 
+    private Table() { }
     public Table(int tableNumber, int capacity)
     {
         if (tableNumber <= 0)

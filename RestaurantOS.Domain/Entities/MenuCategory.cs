@@ -9,6 +9,7 @@ public class MenuCategory : BaseEntity
     public int DisplayOrder { get; private set; }
     public bool IsActive { get; private set; }
 
+    private MenuCategory() { }
     public MenuCategory(string name, string? description, int displayOrder)
     {
         Validate(name, displayOrder);
