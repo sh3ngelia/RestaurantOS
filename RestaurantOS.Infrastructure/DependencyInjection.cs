@@ -23,6 +23,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
 
+        services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
         return services;
     }
 }
