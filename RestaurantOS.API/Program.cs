@@ -1,11 +1,12 @@
+using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using RestaurantOS.API.Middleware;
+using RestaurantOS.API.OpenApi;
 using RestaurantOS.Application;
 using RestaurantOS.Infrastructure;
 using RestaurantOS.Infrastructure.Authentication;
 using RestaurantOS.Infrastructure.Persistence;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,7 +38,10 @@ builder.Services
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+});
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -48,6 +52,11 @@ app.UseExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "RestaurantOS API");
+    });
 
     using var scope = app.Services.CreateScope();
     var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();

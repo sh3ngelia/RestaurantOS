@@ -1,6 +1,32 @@
 @RestaurantOS.API_HostAddress = http://localhost:5012
 
-GET {{RestaurantOS.API_HostAddress}}/weatherforecast/
-Accept: application/json
 
-###
+### 1. Login
+# @name login
+POST {{RestaurantOS.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "manager@restaurantos.local",
+  "password": "Manager123!"
+}
+
+### 2. ვინ ვარ?
+GET {{RestaurantOS.API_HostAddress}}/api/auth/me
+Authorization: Bearer {{login.response.body.$.token}}
+
+### 3. მხოლოდ მენეჯერი
+GET {{RestaurantOS.API_HostAddress}}/api/auth/manager-only
+Authorization: Bearer {{login.response.body.$.token}}
+
+### 4. არასწორი პაროლი
+POST {{RestaurantOS.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "manager@restaurantos.local",
+  "password": "wrong-password"
+}
+
+### 5. token-ის გარეშე
+GET {{RestaurantOS.API_HostAddress}}/api/auth/me
