@@ -2,27 +2,18 @@
 
 namespace RestaurantOS.Application.Menu.Validators;
 
-public class UpdateMenuItemRequestValidator : AbstractValidator<UpdateMenuItemRequest>
+public class UpdateMenuCategoryRequestValidator : AbstractValidator<UpdateMenuCategoryRequest>
 {
-    public UpdateMenuItemRequestValidator()
+    public UpdateMenuCategoryRequestValidator()
     {
         RuleFor(x => x.Name)
-            .NotEmpty().WithMessage("Item name is required.")
-            .MaximumLength(150);
+            .NotEmpty().WithMessage("Category name is required.")
+            .MaximumLength(100);
 
         RuleFor(x => x.Description)
-            .MaximumLength(1000);
+            .MaximumLength(500);
 
-        RuleFor(x => x.Price)
-            .GreaterThan(0).WithMessage("Price must be greater than zero.");
-
-        RuleFor(x => x.CategoryId)
-            .NotEmpty().WithMessage("Category is required.");
-
-        RuleFor(x => x.PreparationStation)
-            .IsInEnum().WithMessage("Invalid preparation station.");
-
-        RuleFor(x => x.PreparationTimeInMinutes)
-            .InclusiveBetween(1, 240).WithMessage("Preparation time must be between 1 and 240 minutes.");
+        RuleFor(x => x.DisplayOrder)
+            .GreaterThanOrEqualTo(0);
     }
 }

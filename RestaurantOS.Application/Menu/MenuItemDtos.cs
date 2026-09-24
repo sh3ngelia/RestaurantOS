@@ -30,3 +30,5 @@ public record UpdateMenuItemRequest(
     int PreparationTimeInMinutes);
 
 public record ChangePriceRequest(decimal NewPrice);
+
+public record SetAvailabilityRequest(bool IsAvailable);
