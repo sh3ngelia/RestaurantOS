@@ -27,7 +27,6 @@ public class MenuItemRepository : IMenuItemRepository
             .Include(mi => mi.Category)
             .AsQueryable();
 
-        // ფილტრი — მხოლოდ თუ კატეგორია მითითებულია
         if (categoryId.HasValue)
             query = query.Where(mi => mi.CategoryId == categoryId.Value);
 

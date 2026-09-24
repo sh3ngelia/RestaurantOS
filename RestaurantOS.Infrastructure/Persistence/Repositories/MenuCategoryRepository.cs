@@ -13,13 +13,11 @@ public class MenuCategoryRepository : IMenuCategoryRepository
         _context = context;
     }
 
-    // შესაცვლელად — tracking-ით
     public async Task<MenuCategory?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.MenuCategories.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }
 
-    // მხოლოდ საჩვენებლად — AsNoTracking, DisplayOrder-ით დალაგებული
     public async Task<IReadOnlyList<MenuCategory>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.MenuCategories
