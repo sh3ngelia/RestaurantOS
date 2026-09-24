@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { motion } from 'motion/react'
 
+import { isTypingTarget } from '@/lib/dom'
 import { DesktopSidebar } from './DesktopSidebar'
 import { MobileNav } from './MobileNav'
 import { Topbar } from './Topbar'
@@ -14,13 +15,6 @@ function readCollapsed() {
   } catch {
     return false
   }
-}
-
-function isTypingTarget(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  )
 }
 
 export function AppShell() {

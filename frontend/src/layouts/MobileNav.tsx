@@ -16,8 +16,8 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" closeLabel="Close navigation" id="mobile-navigation">
-        <SheetTitle>Navigation</SheetTitle>
-        <SheetDescription>Move between RestaurantOS modules.</SheetDescription>
+        <SheetTitle className="sr-only">Navigation</SheetTitle>
+        <SheetDescription className="sr-only">Move between RestaurantOS modules.</SheetDescription>
 
         <div className="flex h-16 items-center px-5">
           <Logo />

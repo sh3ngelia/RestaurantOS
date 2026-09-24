@@ -1,6 +1,6 @@
 # RestaurantOS — Web client
 
-The staff-facing web app for RestaurantOS: sign-in, a role-aware app shell and a dashboard for each station of the restaurant. It talks to the ASP.NET Core API in this repository.
+The staff-facing web app for RestaurantOS: sign-in, a role-aware app shell, a dashboard for each station of the restaurant, and the **Menu** module. It talks to the ASP.NET Core API in this repository.
 
 **Stack:** React 19 · TypeScript (strict) · Vite · Tailwind CSS v4 · shadcn/ui (Radix) · React Router · TanStack Query · Motion · lucide-react · sonner
 
@@ -41,8 +41,9 @@ Open http://localhost:5173 and sign in with the seeded manager account (`Seed:Ma
 src/
 ├── api/                  HTTP layer
 │   ├── client.ts         fetch wrapper: bearer token, ProblemDetails parsing, 401 → sign-out
-│   ├── errors.ts         ApiError + ProblemDetails → user-facing message
-│   └── auth.ts           /api/auth endpoints, query keys, claim helpers
+│   ├── errors.ts         ApiError, ProblemDetails → message, validation errors → form fields
+│   ├── auth.ts           /api/auth endpoints, query keys, claim helpers
+│   └── menu.ts           /api/menu endpoints, types, query keys
 ├── config/
 │   ├── roles.ts          Role union (mirrors the UserRole enum) + per-role copy
 │   └── modules.ts        Role → module mapping; the one place to add a module
@@ -50,15 +51,18 @@ src/
 │   ├── auth/             AuthProvider, session storage, route guards, login page
 │   │   └── components/   LoginForm, KitchenPass (the animated login visual)
 │   ├── dashboard/        Greeting, placeholder stats, module cards
-│   ├── modules/          The /m/:moduleId page ("coming soon" preview + role guard)
+│   ├── menu/             Menu module: page, query/mutation hooks, validation, permissions
+│   │   └── components/   Category nav and sections, item card, inline price editor, forms
+│   ├── modules/          ModuleRoute (role guard from config) + "coming soon" preview page
 │   └── errors/           404
 ├── layouts/              AppShell, sidebar (desktop), drawer (mobile), top bar, user menu
 ├── components/
-│   ├── ui/               shadcn/ui primitives (button, input, dropdown-menu, sheet, …)
+│   ├── ui/               shadcn/ui primitives (button, input, select, dialog, alert-dialog, sheet, switch, …)
 │   ├── theme/            Theme provider (dark by default, persisted)
-│   └── …                 Logo, RoleBadge, UserAvatar, ThemeToggle, FullScreenLoader
-├── hooks/                Small shared hooks
-├── lib/utils.ts          cn(), initials, first name
+│   └── …                 Logo, RoleBadge, UserAvatar, ThemeToggle, FullScreenLoader,
+│                         FormField, ConfirmDialog, EmptyState
+├── hooks/                useDocumentTitle, useFormState (client + server validation)
+├── lib/                  cn() and name helpers, price formatting/parsing, form and DOM helpers
 ├── router.tsx            Route tree
 ├── main.tsx              Providers: Query, Theme, Motion, Tooltip, Router, Toaster
 └── index.css             Design tokens (light + dark), base styles, grain
@@ -68,7 +72,7 @@ src/
 
 1. Add an entry to `MODULES` in [src/config/modules.ts](src/config/modules.ts) with its roles, icon and copy.
 2. That is enough for it to show up in the sidebar and on the dashboard for those roles, with `/m/<id>` guarded by role.
-3. When the real screen ships, set `status: 'available'` and point its route at the new page.
+3. When the real screen ships, set `status: 'available'` and add a static route in [src/router.tsx](src/router.tsx) wrapped in `<ModuleRoute id="…">`. The static route outranks the `/m/:moduleId` preview, and `ModuleRoute` reuses the roles from the config, so the route guard and the navigation can't drift apart. The Menu module is the worked example.
 
 ---
 
@@ -79,6 +83,50 @@ src/
 - **During use:** any authenticated request that comes back `401` ends the session. The client also signs out when the JWT's `exp` passes, and signing out in one tab signs out the others (via the `storage` event).
 - **Guards:** `ProtectedRoute` requires a verified session and `PublicOnlyRoute` keeps signed-in users away from `/login`. `RequireRole` hides UI and routes by role. These guards only shape the UI: the API enforces authorization on every request.
 - **Errors:** failed responses are parsed as ProblemDetails and their `detail` is shown to the user. For validation problems, the `errors` messages are joined instead. Network failures get their own message.
+
+---
+
+## Menu module (`/m/menu`)
+
+The first live module. It covers categories and items from `/api/menu`, for Manager, Kitchen, Bar and Waiter.
+
+| Role              | Can do                                                                   |
+| ----------------- | ------------------------------------------------------------------------ |
+| Manager           | Everything: categories and items (create, edit, delete) and inline price edits |
+| Kitchen, Bar      | 86 or un-86 items with the availability switch                           |
+| Waiter            | Read-only menu                                                           |
+
+Permissions live in [src/features/menu/permissions.ts](src/features/menu/permissions.ts) and mirror the API's `[Authorize(Roles = …)]` attributes. They only hide controls: the server still decides.
+
+**Layout.** A category list, shown as sticky pill tabs on mobile and a sticky vertical list on desktop, with an "All" option and item counts. The chosen category is kept in `?category=`, so it survives a reload and works with the back button. Items appear as cards grouped under category headings. Search matches on name, ignores case and accents ("creme" finds "Crème brûlée"), focuses with `/` and clears with `Esc`.
+
+**Item cards** show the name, description, price in EUR, station (Kitchen or Bar), prep time and availability. An unavailable item is **86'd**: its name is struck through in copper, the card turns muted and dashed, and it gets an "86'd" stamp, like the 404 page.
+
+**Server state (TanStack Query).**
+- **Keys** are hierarchical: `['menu', 'categories']` and `['menu', 'items', 'list' | 'detail', …]`. One invalidation can therefore target all items, or the whole menu.
+- **One request** loads the whole menu. Category filtering and search run on the client, so switching is instant and the list animates rather than showing a spinner.
+- **Availability and price** update optimistically. Every cached copy of the item is patched at once, rolled back if the request fails, then reconciled with the server. With several quick edits in flight, only the last one to settle refetches, so an early response can't overwrite a newer edit. Toggling availability shows a toast with **Undo**.
+- **Create, update and delete** invalidate the affected keys when they settle. A deleted item leaves the cache immediately so its card animates out.
+
+**Errors.**
+- **400 validation:** the API returns `errors` keyed by PascalCase property names (`Name`, `Price`, `CategoryId`, `PreparationTimeInMinutes`, …). `mapValidationErrors` in [api/errors.ts](src/api/errors.ts) matches them to form fields case-insensitively, also accepting JSON paths like `$.price`. Each message appears under its field. Keys that don't match a field become a form-level message.
+- **409 conflict** (for example "Menu item 'Khinkali' already exists."): the `detail` is shown as a form-level alert inside a form, or as a toast for quick actions.
+- **404:** a toast says the record is already gone, and the menu refreshes.
+
+**Validation.** [validation.ts](src/features/menu/validation.ts) mirrors the FluentValidation rules and EF column limits:
+- item name required, at most 150 characters
+- item description at most 1000 characters
+- price greater than 0, at most 2 decimal places (`decimal(10,2)`)
+- prep time a whole number from 1 to 240 minutes
+- category name at most 100 characters, description at most 500, display order 0 or higher
+
+The price field also accepts `12,50` and `€12.50`. Client validation gives instant feedback, and server errors are always shown too.
+
+**Forms.**
+- **Items** are edited in a right-hand sheet, and **categories** in a dialog.
+- **Deleting** asks for confirmation in an alert dialog that stays open, with a spinner, until the request settles.
+- **Non-empty categories:** deleting one explains that it must be emptied first. The server's 409 still covers the case where the client's data is stale.
+- **Prices** can be edited inline from the card: click the price (or focus it and press Enter), type, then press Enter to save or Esc to cancel.
 
 ---
 

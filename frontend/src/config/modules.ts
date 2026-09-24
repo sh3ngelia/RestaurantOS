@@ -89,8 +89,8 @@ export const MODULES: readonly ModuleDefinition[] = [
     ],
     icon: BookOpen,
     group: 'Production',
-    roles: ['Kitchen', 'Waiter', 'Manager'],
-    status: 'coming-soon',
+    roles: ['Kitchen', 'Bar', 'Waiter', 'Manager'],
+    status: 'available',
   },
   {
     id: 'kitchen',

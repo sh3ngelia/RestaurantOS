@@ -44,12 +44,32 @@ function SheetContent({
   )
 }
 
+function SheetHeader({ className, ...props }: React.ComponentProps<'div'>) {
+  return <div data-slot="sheet-header" className={cn('flex flex-col gap-1.5 border-b border-border p-6 pr-14', className)} {...props} />
+}
+
+function SheetFooter({ className, ...props }: React.ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="sheet-footer"
+      className={cn('mt-auto flex flex-col-reverse gap-2 border-t border-border p-6 sm:flex-row sm:justify-end', className)}
+      {...props}
+    />
+  )
+}
+
 function SheetTitle({ className, ...props }: React.ComponentProps<typeof SheetPrimitive.Title>) {
-  return <SheetPrimitive.Title data-slot="sheet-title" className={cn('sr-only', className)} {...props} />
+  return <SheetPrimitive.Title data-slot="sheet-title" className={cn('font-serif text-2xl font-normal', className)} {...props} />
 }
 
 function SheetDescription({ className, ...props }: React.ComponentProps<typeof SheetPrimitive.Description>) {
-  return <SheetPrimitive.Description data-slot="sheet-description" className={cn('sr-only', className)} {...props} />
+  return (
+    <SheetPrimitive.Description
+      data-slot="sheet-description"
+      className={cn('text-sm leading-relaxed text-muted-foreground', className)}
+      {...props}
+    />
+  )
 }
 
-export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetTitle, SheetDescription }
+export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription }
