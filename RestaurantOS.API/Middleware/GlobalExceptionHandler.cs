@@ -20,6 +20,12 @@ public class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
+        // თუ კლიენტმა თვითონ გააუქმა მოთხოვნა ეს შეცდომა არ არის
+        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
+        {
+            httpContext.Response.StatusCode = 499; // "Client Closed Request"
+            return true;
+        }
         if (exception is ValidationException validationException)
         {
             var errors = validationException.Errors
