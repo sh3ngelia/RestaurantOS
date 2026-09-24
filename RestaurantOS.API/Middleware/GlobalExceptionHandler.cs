@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿using FluentValidation;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantOS.Application.Common.Exceptions;
 using RestaurantOS.Domain.Common;
@@ -19,9 +20,28 @@ public class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
+        if (exception is ValidationException validationException)
+        {
+            var errors = validationException.Errors
+                .GroupBy(e => e.PropertyName)
+                .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+            var validationProblem = new ValidationProblemDetails(errors)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Validation failed"
+            };
+
+            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await httpContext.Response.WriteAsJsonAsync(validationProblem, cancellationToken);
+            return true;
+        }
+
         var (statusCode, title) = exception switch
         {
             AuthenticationFailedException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
+            NotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
+            ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
             DomainException => (StatusCodes.Status400BadRequest, "Bad Request"),
             _ => (StatusCodes.Status500InternalServerError, "Server Error")
         };
@@ -40,7 +60,6 @@ public class GlobalExceptionHandler : IExceptionHandler
 
         httpContext.Response.StatusCode = statusCode;
         await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
-
         return true;
     }
 }
