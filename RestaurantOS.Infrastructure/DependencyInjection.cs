@@ -34,6 +34,9 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<RestaurantDbContext>());
 
+        services.AddScoped<IMenuCategoryRepository, MenuCategoryRepository>();
+        services.AddScoped<IMenuItemRepository, MenuItemRepository>();
+
         return services;
     }
 }
