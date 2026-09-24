@@ -1,6 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 using RestaurantOS.Application.Authentication;
-using FluentValidation;
+using RestaurantOS.Application.Menu;
 
 namespace RestaurantOS.Application;
 
@@ -11,6 +12,8 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
+
+        services.AddScoped<IMenuCategoryService, MenuCategoryService>();
 
         return services;
     }
