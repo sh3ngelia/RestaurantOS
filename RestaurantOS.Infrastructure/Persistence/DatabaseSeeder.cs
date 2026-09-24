@@ -28,7 +28,6 @@ public class DatabaseSeeder
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
-        // უკვე ვინმე არის? (წაშლილების ჩათვლით) → არაფერს ვაკეთებთ
         if (await _context.Users.IgnoreQueryFilters().AnyAsync(cancellationToken))
             return;
 

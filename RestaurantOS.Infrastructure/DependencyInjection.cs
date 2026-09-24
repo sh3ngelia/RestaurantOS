@@ -32,6 +32,8 @@ public static class DependencyInjection
 
         services.AddScoped<DatabaseSeeder>();
 
+        services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<RestaurantDbContext>());
+
         return services;
     }
 }

@@ -17,7 +17,6 @@ internal sealed class BearerSecuritySchemeTransformer(
         if (!authenticationSchemes.Any(scheme => scheme.Name == "Bearer"))
             return;
 
-        // 1. ვაცხადებთ: "ეს API იყენებს Bearer token-ს"
         var securitySchemes = new Dictionary<string, IOpenApiSecurityScheme>
         {
             ["Bearer"] = new OpenApiSecurityScheme
@@ -32,7 +31,6 @@ internal sealed class BearerSecuritySchemeTransformer(
         document.Components ??= new OpenApiComponents();
         document.Components.SecuritySchemes = securitySchemes;
 
-        // 2. ყველა endpoint-ს ვეუბნებით: token გაგზავნე
         foreach (var operation in document.Paths.Values.SelectMany(path => path.Operations))
         {
             operation.Value.Security ??= [];
