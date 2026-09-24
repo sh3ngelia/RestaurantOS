@@ -42,8 +42,8 @@ public class DatabaseSeeder
         }
 
         var manager = new User(
-            "Restaurant",
-            "Manager",
+            "Anna",
+            "Keller",
             email,
             _passwordHasher.Hash(password),
             UserRole.Manager);
