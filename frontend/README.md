@@ -1,6 +1,6 @@
 # RestaurantOS — Web client
 
-The staff-facing web app for RestaurantOS: sign-in, a role-aware app shell, a dashboard for each station of the restaurant, and the **Menu** module. It talks to the ASP.NET Core API in this repository.
+The staff-facing web app for RestaurantOS: sign-in, a role-aware app shell, a dashboard for each station of the restaurant, and the **Tables** and **Menu** modules. It talks to the ASP.NET Core API in this repository.
 
 **Stack:** React 19 · TypeScript (strict) · Vite · Tailwind CSS v4 · shadcn/ui (Radix) · React Router · TanStack Query · Motion · lucide-react · sonner
 
@@ -43,7 +43,8 @@ src/
 │   ├── client.ts         fetch wrapper: bearer token, ProblemDetails parsing, 401 → sign-out
 │   ├── errors.ts         ApiError, ProblemDetails → message, validation errors → form fields
 │   ├── auth.ts           /api/auth endpoints, query keys, claim helpers
-│   └── menu.ts           /api/menu endpoints, types, query keys
+│   ├── menu.ts           /api/menu endpoints, types, query keys
+│   └── tables.ts         /api/tables endpoints, types, query keys
 ├── config/
 │   ├── roles.ts          Role union (mirrors the UserRole enum) + per-role copy
 │   └── modules.ts        Role → module mapping; the one place to add a module
@@ -51,13 +52,15 @@ src/
 │   ├── auth/             AuthProvider, session storage, route guards, login page
 │   │   └── components/   LoginForm, KitchenPass (the animated login visual)
 │   ├── dashboard/        Greeting, placeholder stats, module cards
+│   ├── tables/           Tables module: floor page, status model, hooks, validation, permissions
+│   │   └── components/   Table card + quick actions, SVG table shape, filters, occupancy bar, form
 │   ├── menu/             Menu module: page, query/mutation hooks, validation, permissions
 │   │   └── components/   Category nav and sections, item card, inline price editor, forms
 │   ├── modules/          ModuleRoute (role guard from config) + "coming soon" preview page
 │   └── errors/           404
 ├── layouts/              AppShell, sidebar (desktop), drawer (mobile), top bar, user menu
 ├── components/
-│   ├── ui/               shadcn/ui primitives (button, input, select, dialog, alert-dialog, sheet, switch, …)
+│   ├── ui/               shadcn/ui primitives (button, input, select, dialog, alert-dialog, popover, sheet, switch, …)
 │   ├── theme/            Theme provider (dark by default, persisted)
 │   └── …                 Logo, RoleBadge, UserAvatar, ThemeToggle, FullScreenLoader,
 │                         FormField, ConfirmDialog, EmptyState
@@ -72,7 +75,7 @@ src/
 
 1. Add an entry to `MODULES` in [src/config/modules.ts](src/config/modules.ts) with its roles, icon and copy.
 2. That is enough for it to show up in the sidebar and on the dashboard for those roles, with `/m/<id>` guarded by role.
-3. When the real screen ships, set `status: 'available'` and add a static route in [src/router.tsx](src/router.tsx) wrapped in `<ModuleRoute id="…">`. The static route outranks the `/m/:moduleId` preview, and `ModuleRoute` reuses the roles from the config, so the route guard and the navigation can't drift apart. The Menu module is the worked example.
+3. When the real screen ships, set `status: 'available'` and add a static route in [src/router.tsx](src/router.tsx) wrapped in `<ModuleRoute id="…">`. The static route outranks the `/m/:moduleId` preview, and `ModuleRoute` reuses the roles from the config, so the route guard and the navigation can't drift apart. The Tables and Menu modules are worked examples.
 
 ---
 
@@ -83,6 +86,53 @@ src/
 - **During use:** any authenticated request that comes back `401` ends the session. The client also signs out when the JWT's `exp` passes, and signing out in one tab signs out the others (via the `storage` event).
 - **Guards:** `ProtectedRoute` requires a verified session and `PublicOnlyRoute` keeps signed-in users away from `/login`. `RequireRole` hides UI and routes by role. These guards only shape the UI: the API enforces authorization on every request.
 - **Errors:** failed responses are parsed as ProblemDetails and their `detail` is shown to the user. For validation problems, the `errors` messages are joined instead. Network failures get their own message.
+
+---
+
+## Tables module (`/m/tables`)
+
+The host's floor view. The API allows Host and Manager, so the module config, route guard and sidebar are limited to those two roles.
+
+| Role    | Can do                                                                  |
+| ------- | ----------------------------------------------------------------------- |
+| Host    | See the floor; seat, reserve and clear tables                           |
+| Manager | Everything a host can, plus add, edit (number, seats) and delete tables |
+
+**The floor.**
+- **Header:** a status summary ("4 seated · 2 reserved · 3 free"), a slim occupancy bar and covers seated out of total seats. The API has no party size, so covers are counted as the capacity of seated tables.
+- **Filter chips:** All, Free, Seated and Reserved, with counts. The choice is kept in `?status=`.
+- **Table cards:** each card shows the table number large, a status badge and a top-down SVG sketch of the table with its chairs: round for up to 2 seats, square for up to 4, and a long banquet table beyond that. Banquet tables over 8 seats span two grid columns.
+
+**Status treatment.** The API's `Available`, `Occupied` and `Reserved` appear as the host's words: Free, Seated and Reserved.
+
+| Status   | Look                                                                            |
+| -------- | ------------------------------------------------------------------------------- |
+| Free     | Calm neutral card, outlined chairs                                              |
+| Seated   | Warm copper, the brand accent: tinted card with a soft glow, filled copper chairs |
+| Reserved | A second, cool slate-blue tone (`--reserved` in `index.css`) with a dashed outline |
+
+**Quick actions.** Tapping a card opens a popover that offers only the transitions the API allows from the current status. The rules are copied from the `Table` entity into [status.ts](src/features/tables/status.ts):
+- **Seat guests** works from Free or Reserved.
+- **Reserve** works from Free only.
+- **Clear table** works from Seated or Reserved.
+
+Changes are **optimistic** and **rolled back** if the API refuses. A 400 from a status change carries the domain message (for example "Only available tables can be reserved"), which appears as a toast. With several quick taps in flight, only the last one to settle refetches.
+
+**Staying current.** Other hosts change the floor too, so the list refetches every 30 seconds and when the window regains focus.
+
+**Managing tables (Manager).**
+- **Add table:** a dialog with the table number (defaults to the next free number) and a seats stepper with -/+ buttons for tablets. It includes a live preview of the table shape.
+- **Validation:** client rules mirror the API (number 1-999, seats 1-30). Server errors keyed `TableNumber` or `Capacity` appear under their fields.
+- **Conflicts:** a 409 such as "Table 12 already exists." appears as a form-level alert, which clears as soon as the form is edited.
+- **Deleting:** only free tables can be deleted. The confirm dialog reads the table's live status and explains why deletion is blocked; the server's 409 remains the backstop.
+
+**Dashboard.** For Host and Manager, the "Tables seated" stat shows real data (seated out of total, an occupancy bar and covers seated) and links to the floor. Other roles keep the placeholder.
+
+**Built for the door.** Hosts use tablets, so tap targets are generous:
+- table cards at least 12rem tall
+- filter chips 40px
+- popover actions 48px
+- manage buttons 40px
 
 ---
 
@@ -134,12 +184,13 @@ The price field also accepts `12,50` and `€12.50`. Client validation gives ins
 
 **Mood: a professional kitchen during service.** Calm, precise and confident. The UI stays out of the way during a rush and has some warmth when things are quiet.
 
-- **Palette.** Warm charcoal surfaces and warm off-white text in OKLCH, with a single burnished-copper accent. Copper appears only where something is active, primary or needs attention. Red is kept for errors and is never decorative. Every colour is a CSS variable in `index.css`, and the light theme redefines the same tokens, so components never check which theme is active.
+- **Palette.** Warm charcoal surfaces and warm off-white text in OKLCH, with a single burnished-copper accent. Copper appears only where something is active, primary or needs attention. There is one exception: a cool slate-blue status tone (`--reserved`), used only for reserved tables, which need to read as clearly different from seated ones at a glance. Red is kept for errors and is never decorative. Every colour is a CSS variable in `index.css`, and the light theme redefines the same tokens, so components never check which theme is active.
 - **Type.** *Fraunces*, a soft optical-size serif, sets headings and gives the product an editorial, menu-card feel. *Inter* handles all UI text. *JetBrains Mono* is used sparingly for ticket-like metadata (dates, eyebrows, the "Soon" tags), echoing kitchen printer tickets.
 - **Depth without gloss.** Surfaces are layered as sunken, base and raised, with hairline borders, a one-pixel top highlight and soft shadows. A fixed SVG noise layer at about 4% opacity takes the digital flatness off. There are no gradients-for-the-sake-of-it and no glassmorphism.
 - **The login visual** is built from CSS and SVG: a ticket rail over a heat-lamped pass. New tickets slide in, the oldest is "bumped" every few seconds, timers tick and steam rises off the plates. It stays dark in both themes, like a kitchen at night.
 - **Motion is functional.** Most transitions run 150–300 ms: page fade-and-rise, staggered card entrance, button press scale, a sliding active-nav indicator and the sidebar width. `MotionConfig reducedMotion="user"` plus a CSS `prefers-reduced-motion` block turn off transforms and ambient loops for people who ask for less motion.
 - **Kitchen language, lightly.** The 404 page is "86'd" (off the menu), a forbidden page is "Not your station" and module previews list what's "On the menu". It's a nod to the domain without getting in the way.
+- **No emoji.** Every icon is a lucide-react component or inline SVG, and the copy uses plain text.
 - **Accessibility.** The app uses semantic landmarks and has a skip link. Every input has a real `<label>`. Errors are linked to fields with `aria-describedby`, and API errors use `role="alert"`. Focus rings are visible everywhere. The Radix primitives provide keyboard support for menus, the drawer and tooltips. Icon-only buttons have accessible names. The password field warns when Caps Lock is on.
 - **shadcn/ui, owned.** The primitives in `components/ui` follow shadcn's structure (Radix + `cva` + `cn`) and `components.json` is set up, so `npx shadcn add <component>` works. They are restyled around the tokens above instead of the default neutral theme.
 - **Small conveniences.** The collapsed sidebar is remembered and `[` toggles it. The theme is applied before first paint, so there's no flash. Vendor code is split into long-lived chunks: react, motion and the rest.

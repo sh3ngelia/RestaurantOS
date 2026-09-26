@@ -1,4 +1,5 @@
 import { motion } from 'motion/react'
+import { Copyright } from 'lucide-react'
 
 import { Logo } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -48,8 +49,9 @@ export function LoginPage() {
           </motion.div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground/70 lg:text-left">
-          © {new Date().getFullYear()} RestaurantOS
+        <p className="flex items-center justify-center gap-1 text-xs text-muted-foreground/70 lg:justify-start">
+          <Copyright className="size-3" aria-label="Copyright" role="img" />
+          {new Date().getFullYear()} RestaurantOS
         </p>
       </main>
     </div>

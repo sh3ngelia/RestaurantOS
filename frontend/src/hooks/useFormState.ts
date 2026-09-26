@@ -33,8 +33,10 @@ export function useFormState<F extends string, V extends Record<F, string>>({
 
   const setValue = useCallback((field: F, value: string) => {
     setValues((current) => ({ ...current, [field]: value }))
-    // Editing a field retires the server's complaint about it.
+    // Editing retires the server's complaint about that field, and any form-level message
+    // (e.g. a 409 "already exists"), which no longer describes what's in the form.
     setServerErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
+    setFormError(null)
   }, [])
 
   const touch = useCallback((field: F) => setTouched((current) => ({ ...current, [field]: true })), [])

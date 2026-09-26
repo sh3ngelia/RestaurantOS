@@ -33,6 +33,10 @@
   --destructive: oklch(0.55 0.19 28);
   --destructive-foreground: oklch(0.99 0.005 80);
 
+  /* Secondary status tone (reserved tables): a dusty slate blue that sits apart from copper. */
+  --reserved: oklch(0.5 0.07 240);
+  --reserved-soft: oklch(0.5 0.07 240 / 0.1);
+
   --border: oklch(0.3 0.02 60 / 0.12);
   --border-strong: oklch(0.3 0.02 60 / 0.2);
   --input: oklch(0.3 0.02 60 / 0.18);
@@ -64,6 +68,9 @@
 
   --destructive: oklch(0.68 0.16 28);
   --destructive-foreground: oklch(0.18 0.02 30);
+
+  --reserved: oklch(0.76 0.06 235);
+  --reserved-soft: oklch(0.76 0.06 235 / 0.12);
 
   --border: oklch(0.95 0.02 70 / 0.085);
   --border-strong: oklch(0.95 0.02 70 / 0.15);
@@ -102,6 +109,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-reserved: var(--reserved);
+  --color-reserved-soft: var(--reserved-soft);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);

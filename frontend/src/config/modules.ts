@@ -39,7 +39,7 @@ export const MODULES: readonly ModuleDefinition[] = [
   {
     id: 'tables',
     title: 'Tables',
-    description: 'Live floor plan with table status, covers and turn times.',
+    description: 'The floor at a glance: seat, reserve and clear tables in a tap.',
     highlights: [
       'Drag-and-drop floor plan per section',
       'Status at a glance: free, seated, mains, check',
@@ -47,8 +47,8 @@ export const MODULES: readonly ModuleDefinition[] = [
     ],
     icon: Armchair,
     group: 'Service',
-    roles: ['Host', 'Waiter', 'Manager'],
-    status: 'coming-soon',
+    roles: ['Host', 'Manager'],
+    status: 'available',
   },
   {
     id: 'reservations',
