@@ -44,4 +44,16 @@ public class Table: BaseEntity
         Status = TableStatus.Available;
         MarkAsUpdated();
     }
+
+    public void UpdateDetails(int tableNumber, int capacity)
+    {
+        if (tableNumber <= 0)
+            throw new DomainException("Table number must be greater than zero");
+        if (capacity <= 0)
+            throw new DomainException("Capacity must be greater than zero");
+
+        TableNumber = tableNumber;
+        Capacity = capacity;
+        MarkAsUpdated();
+    }
 }

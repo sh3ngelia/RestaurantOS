@@ -37,6 +37,6 @@ public class AuthController : ControllerBase
     [Authorize(Roles = "Manager")]
     public IActionResult ManagerOnly()
     {
-        return Ok("Welcome, Manager! 👔");
+        return Ok("Welcome, Manager!");
     }
 }

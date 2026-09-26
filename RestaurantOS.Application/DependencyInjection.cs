@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using RestaurantOS.Application.Authentication;
 using RestaurantOS.Application.Menu;
+using RestaurantOS.Application.Tables;
 
 namespace RestaurantOS.Application;
 
@@ -16,6 +17,8 @@ public static class DependencyInjection
         services.AddScoped<IMenuCategoryService, MenuCategoryService>();
 
         services.AddScoped<IMenuItemService, MenuItemService>();
+
+        services.AddScoped<ITableService, TableService>();
 
         return services;
     }
