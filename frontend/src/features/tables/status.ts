@@ -1,6 +1,6 @@
-import { CalendarClock, Eraser, UsersRound, type LucideIcon } from 'lucide-react'
+import { Eraser, Lock, LockOpen, UserCheck, UsersRound, type LucideIcon } from 'lucide-react'
 
-import type { TableAction, TableStatus } from '@/api/tables'
+import type { DiningTable, TableAction, TableStatus } from '@/api/tables'
 
 /** Floor language: the API says Available/Occupied, the host says free/seated. */
 export const STATUS_LABELS: Record<TableStatus, string> = {
@@ -9,47 +9,101 @@ export const STATUS_LABELS: Record<TableStatus, string> = {
   Reserved: 'Reserved',
 }
 
-interface ActionDefinition {
-  label: string
-  description: string
+// ── Floor state ──────────────────────────────────────────────────────────────
+
+/**
+ * What the host needs to know, derived from the server's computed status:
+ * - seated: Occupied
+ * - held:   Reserved by a manual hold (or, defensively, Reserved with no booking attached)
+ * - booked: Reserved because a confirmed booking is due within 45 minutes or running late
+ * - free:   Available (it may still have a booking later, shown as a hint)
+ */
+export type FloorState = 'free' | 'seated' | 'held' | 'booked'
+
+export function floorStateOf(table: DiningTable): FloorState {
+  if (table.status === 'Occupied') return 'seated'
+  if (table.status === 'Reserved') return table.isHeld || !table.nextReservation ? 'held' : 'booked'
+  return 'free'
+}
+
+// ── Quick actions ────────────────────────────────────────────────────────────
+
+export type QuickAction = 'seat' | 'hold' | 'release' | 'clear' | 'seatBooking' | 'seatWalkIn'
+
+interface QuickActionDefinition {
+  label: (table: DiningTable) => string
+  description: (table: DiningTable) => string
   icon: LucideIcon
-  /** Statuses the API accepts this action from (mirrors the Table entity's rules). */
-  from: readonly TableStatus[]
-  to: TableStatus
-  successTitle: (tableNumber: number) => string
+  /** The endpoint behind the action: a table status change, or arriving the table's booking. */
+  endpoint: { kind: 'table'; action: TableAction } | { kind: 'reservation-arrive' }
+  /** Optimistic shape of the table once the action succeeds. */
+  apply: (table: DiningTable) => Pick<DiningTable, 'status' | 'isHeld' | 'nextReservation'>
+  /** Ask before running (seating a walk-in when a booking is due). */
+  needsConfirmation?: boolean
+  successTitle: (table: DiningTable) => string
 }
 
-export const TABLE_ACTIONS: Record<TableAction, ActionDefinition> = {
-  occupy: {
-    label: 'Seat guests',
-    description: 'Mark the table as seated.',
+const seated = (table: DiningTable) => ({ status: 'Occupied' as const, isHeld: false, nextReservation: table.nextReservation })
+
+export const QUICK_ACTIONS: Record<QuickAction, QuickActionDefinition> = {
+  seat: {
+    label: () => 'Seat guests',
+    description: () => 'Mark the table as seated.',
     icon: UsersRound,
-    from: ['Available', 'Reserved'],
-    to: 'Occupied',
-    successTitle: (n) => `Guests seated at table ${n}`,
+    endpoint: { kind: 'table', action: 'occupy' },
+    apply: seated,
+    successTitle: (t) => `Guests seated at table ${t.tableNumber}`,
   },
-  reserve: {
-    label: 'Reserve',
-    description: 'Hold the table for a booking.',
-    icon: CalendarClock,
-    from: ['Available'],
-    to: 'Reserved',
-    successTitle: (n) => `Table ${n} reserved`,
+  hold: {
+    label: () => 'Hold',
+    description: () => 'Keep the table back for someone.',
+    icon: Lock,
+    endpoint: { kind: 'table', action: 'reserve' },
+    apply: (t) => ({ status: 'Reserved', isHeld: true, nextReservation: t.nextReservation }),
+    successTitle: (t) => `Table ${t.tableNumber} is on hold`,
   },
-  free: {
-    label: 'Clear table',
-    description: 'Guests have left; ready to reset.',
+  release: {
+    label: () => 'Release hold',
+    description: () => 'Make the table free again.',
+    icon: LockOpen,
+    endpoint: { kind: 'table', action: 'free' },
+    apply: (t) => ({ status: 'Available', isHeld: false, nextReservation: t.nextReservation }),
+    successTitle: (t) => `Hold released on table ${t.tableNumber}`,
+  },
+  clear: {
+    label: () => 'Clear table',
+    description: () => 'Guests have left; ready to reset.',
     icon: Eraser,
-    from: ['Occupied', 'Reserved'],
-    to: 'Available',
-    successTitle: (n) => `Table ${n} is free again`,
+    endpoint: { kind: 'table', action: 'free' },
+    apply: (t) => ({ status: 'Available', isHeld: false, nextReservation: t.nextReservation }),
+    successTitle: (t) => `Table ${t.tableNumber} is free again`,
+  },
+  seatBooking: {
+    label: (t) => `Seat ${t.nextReservation?.guestName ?? 'the booking'}`,
+    description: () => 'Marks their booking as arrived.',
+    icon: UserCheck,
+    endpoint: { kind: 'reservation-arrive' },
+    // The arrived booking is no longer "next"; the refetch brings the following one.
+    apply: () => ({ status: 'Occupied', isHeld: false, nextReservation: null }),
+    successTitle: (t) => `${t.nextReservation?.guestName ?? 'Guests'} seated at table ${t.tableNumber}`,
+  },
+  seatWalkIn: {
+    label: () => 'Seat walk-in instead',
+    description: () => 'A booking is due; you will be asked to confirm.',
+    icon: UsersRound,
+    endpoint: { kind: 'table', action: 'occupy' },
+    apply: seated,
+    needsConfirmation: true,
+    successTitle: (t) => `Walk-in seated at table ${t.tableNumber}`,
   },
 }
 
-const ACTION_ORDER: readonly TableAction[] = ['occupy', 'reserve', 'free']
-
-export function actionsFor(status: TableStatus): TableAction[] {
-  return ACTION_ORDER.filter((action) => TABLE_ACTIONS[action].from.includes(status))
+/** Only the actions the API accepts in each state, primary first. */
+export const ACTIONS_BY_STATE: Record<FloorState, readonly QuickAction[]> = {
+  seated: ['clear'],
+  held: ['seat', 'release'],
+  booked: ['seatBooking', 'seatWalkIn'],
+  free: ['seat', 'hold'],
 }
 
 /** Visual treatment per status: calm neutral, warm copper, and a cool second tone. */
@@ -65,7 +119,7 @@ export const STATUS_TONES: Record<TableStatus, { card: string; badge: string; do
     dot: 'bg-primary',
   },
   Reserved: {
-    card: 'border-dashed border-reserved/50 bg-reserved-soft',
+    card: 'border-reserved/50 bg-reserved-soft',
     badge: 'border-reserved/35 bg-reserved/10 text-reserved',
     dot: 'bg-reserved',
   },

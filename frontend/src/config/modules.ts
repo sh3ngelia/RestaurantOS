@@ -39,7 +39,7 @@ export const MODULES: readonly ModuleDefinition[] = [
   {
     id: 'tables',
     title: 'Tables',
-    description: 'The floor at a glance: seat, reserve and clear tables in a tap.',
+    description: 'The floor at a glance: seat, hold and clear tables in a tap.',
     highlights: [
       'Drag-and-drop floor plan per section',
       'Status at a glance: free, seated, mains, check',
@@ -53,7 +53,7 @@ export const MODULES: readonly ModuleDefinition[] = [
   {
     id: 'reservations',
     title: 'Reservations',
-    description: 'The book for tonight and beyond — seat, confirm and track guests.',
+    description: 'The book for tonight and beyond: confirm, seat and track every booking.',
     highlights: [
       "Tonight's book with covers per slot",
       'Walk-ins, waitlist and no-show tracking',
@@ -62,7 +62,7 @@ export const MODULES: readonly ModuleDefinition[] = [
     icon: CalendarClock,
     group: 'Service',
     roles: ['Host', 'Manager'],
-    status: 'coming-soon',
+    status: 'available',
   },
   {
     id: 'orders',

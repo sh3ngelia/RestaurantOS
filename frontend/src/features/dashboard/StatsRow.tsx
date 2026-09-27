@@ -10,8 +10,12 @@ import { OccupancyBar } from '@/features/tables/components/OccupancyBar'
 import { countFloor } from '@/features/tables/floor'
 import { useTables } from '@/features/tables/hooks'
 import { getTablePermissions } from '@/features/tables/permissions'
+import { useDayReservations } from '@/features/reservations/hooks'
+import { canUseReservations } from '@/features/reservations/permissions'
+import { summarizeDay } from '@/features/reservations/summary'
+import { todayKey } from '@/lib/dates'
 
-type LiveSource = 'tablesSeated'
+type LiveSource = 'tablesSeated' | 'coversTonight'
 
 interface StatDefinition {
   label: string
@@ -23,7 +27,7 @@ interface StatDefinition {
 
 /** KPIs per role. Placeholders are wired to their module's endpoint as each module ships. */
 const STATS: readonly StatDefinition[] = [
-  { label: 'Covers tonight', source: 'Reservations', roles: ['Host', 'Waiter', 'Manager'] },
+  { label: 'Covers tonight', source: 'Reservations', roles: ['Host', 'Waiter', 'Manager'], live: 'coversTonight' },
   { label: 'Tables seated', source: 'Tables', roles: ['Host', 'Waiter', 'Manager'], live: 'tablesSeated' },
   { label: 'Open tickets', source: 'Orders', roles: ['Waiter', 'Kitchen', 'Bar', 'Manager'] },
   { label: 'Avg. ticket time', source: 'Kitchen Display', roles: ['Kitchen', 'Bar', 'Manager'] },
@@ -35,6 +39,7 @@ const STATS: readonly StatDefinition[] = [
 
 const LIVE_ACCESS: Record<LiveSource, (role: Role) => boolean> = {
   tablesSeated: (role) => getTablePermissions(role).canUseFloor,
+  coversTonight: canUseReservations,
 }
 
 const MAX_STATS = 4
@@ -58,6 +63,8 @@ export function StatsRow({ role }: { role: Role }) {
           >
             {stat.live === 'tablesSeated' && LIVE_ACCESS.tablesSeated(role) ? (
               <TablesSeatedStat label={stat.label} />
+            ) : stat.live === 'coversTonight' && LIVE_ACCESS.coversTonight(role) ? (
+              <CoversTonightStat label={stat.label} />
             ) : (
               <PlaceholderStat stat={stat} />
             )}
@@ -122,6 +129,66 @@ function TablesSeatedStat({ label }: { label: string }) {
       aria-busy={tables.isPending}
       aria-label={
         tables.isSuccess ? `${label}: ${counts.byStatus.Occupied} of ${counts.total}. Open the floor.` : `${label}. Open the floor.`
+      }
+      className="group block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
+      <Card className="relative h-full overflow-hidden p-4 transition-[border-color] duration-200 group-hover:border-primary/30 sm:p-5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[13px] text-muted-foreground">{label}</p>
+          <ArrowUpRight
+            className="size-3.5 text-muted-foreground transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary"
+            aria-hidden="true"
+          />
+        </div>
+        {body}
+      </Card>
+    </Link>
+  )
+}
+
+function CoversTonightStat({ label }: { label: string }) {
+  const reservations = useDayReservations(todayKey())
+  const summary = summarizeDay(reservations.data ?? [])
+  const arrivedShare = summary.coversExpected > 0 ? (summary.coversArrived / summary.coversExpected) * 100 : 0
+
+  let body: ReactNode
+  if (reservations.isPending) {
+    body = (
+      <>
+        <Skeleton className="mt-3 h-7 w-16 sm:w-20" />
+        <Skeleton className="mt-4 h-1.5 w-full rounded-full" />
+      </>
+    )
+  } else if (reservations.isError) {
+    body = <p className="mt-3 text-sm text-muted-foreground">Couldn’t load the book.</p>
+  } else {
+    body = (
+      <>
+        <p className="mt-2 font-serif text-3xl leading-none font-light tabular-nums">{summary.coversExpected}</p>
+        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-border-strong" aria-hidden="true">
+          <motion.div
+            className="h-full rounded-full bg-primary"
+            initial={false}
+            animate={{ width: `${arrivedShare}%` }}
+            transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+          />
+        </div>
+        <p className="mt-3 truncate font-mono text-[10.5px] tracking-wide text-muted-foreground uppercase">
+          {summary.active} {summary.active === 1 ? 'booking' : 'bookings'} · {summary.coversArrived}{' '}
+          {summary.coversArrived === 1 ? 'guest' : 'guests'} arrived
+        </p>
+      </>
+    )
+  }
+
+  return (
+    <Link
+      to="/m/reservations"
+      aria-busy={reservations.isPending}
+      aria-label={
+        reservations.isSuccess
+          ? `${label}: ${summary.coversExpected} covers expected, ${summary.coversArrived} guests arrived. Open reservations.`
+          : `${label}. Open reservations.`
       }
       className="group block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >

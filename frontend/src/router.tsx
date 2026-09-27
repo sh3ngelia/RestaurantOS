@@ -7,6 +7,7 @@ import { NotFoundPage } from '@/features/errors/NotFoundPage'
 import { MenuPage } from '@/features/menu/MenuPage'
 import { ModulePage } from '@/features/modules/ModulePage'
 import { ModuleRoute } from '@/features/modules/ModuleRoute'
+import { ReservationsPage } from '@/features/reservations/ReservationsPage'
 import { TablesPage } from '@/features/tables/TablesPage'
 import { AppShell } from '@/layouts/AppShell'
 import { RootLayout } from '@/layouts/RootLayout'
@@ -33,6 +34,14 @@ export const router = createBrowserRouter([
                 element: (
                   <ModuleRoute id="tables">
                     <TablesPage />
+                  </ModuleRoute>
+                ),
+              },
+              {
+                path: 'm/reservations',
+                element: (
+                  <ModuleRoute id="reservations">
+                    <ReservationsPage />
                   </ModuleRoute>
                 ),
               },

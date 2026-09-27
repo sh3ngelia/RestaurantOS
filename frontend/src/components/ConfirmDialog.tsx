@@ -22,9 +22,11 @@ interface ConfirmDialogProps {
   onConfirm: () => Promise<unknown>
   /** Blocks confirmation, e.g. when the action can't succeed yet. */
   confirmDisabled?: boolean
+  /** Red for destructive actions (the default); the accent for a deliberate but safe override. */
+  confirmVariant?: 'destructive' | 'default'
 }
 
-/** Destructive confirmation that stays open, with a spinner, until the action settles. */
+/** Confirmation that stays open, with a spinner, until the action settles. */
 export function ConfirmDialog({
   open,
   onOpenChange,
@@ -33,6 +35,7 @@ export function ConfirmDialog({
   confirmLabel,
   onConfirm,
   confirmDisabled = false,
+  confirmVariant = 'destructive',
 }: ConfirmDialogProps) {
   const [pending, setPending] = useState(false)
 
@@ -58,7 +61,7 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirm} disabled={pending || confirmDisabled} aria-busy={pending}>
+          <AlertDialogAction variant={confirmVariant} onClick={handleConfirm} disabled={pending || confirmDisabled} aria-busy={pending}>
             {pending && <LoaderCircle className="animate-spin" aria-hidden="true" />}
             {confirmLabel}
           </AlertDialogAction>

@@ -1,6 +1,6 @@
 # RestaurantOS — Web client
 
-The staff-facing web app for RestaurantOS: sign-in, a role-aware app shell, a dashboard for each station of the restaurant, and the **Tables** and **Menu** modules. It talks to the ASP.NET Core API in this repository.
+The staff-facing web app for RestaurantOS: sign-in, a role-aware app shell, a dashboard for each station of the restaurant, and the **Tables**, **Reservations** and **Menu** modules. It talks to the ASP.NET Core API in this repository.
 
 **Stack:** React 19 · TypeScript (strict) · Vite · Tailwind CSS v4 · shadcn/ui (Radix) · React Router · TanStack Query · Motion · lucide-react · sonner
 
@@ -44,6 +44,7 @@ src/
 │   ├── errors.ts         ApiError, ProblemDetails → message, validation errors → form fields
 │   ├── auth.ts           /api/auth endpoints, query keys, claim helpers
 │   ├── menu.ts           /api/menu endpoints, types, query keys
+│   ├── reservations.ts   /api/reservations endpoints, types, query keys (times normalised to UTC)
 │   └── tables.ts         /api/tables endpoints, types, query keys
 ├── config/
 │   ├── roles.ts          Role union (mirrors the UserRole enum) + per-role copy
@@ -54,6 +55,8 @@ src/
 │   ├── dashboard/        Greeting, placeholder stats, module cards
 │   ├── tables/           Tables module: floor page, status model, hooks, validation, permissions
 │   │   └── components/   Table card + quick actions, SVG table shape, filters, occupancy bar, form
+│   ├── reservations/     Reservations module: day page, status + timing model, hooks, validation, summaries
+│   │   └── components/   Day nav, hour timeline, row + actions, new/edit/reschedule dialogs, pickers
 │   ├── menu/             Menu module: page, query/mutation hooks, validation, permissions
 │   │   └── components/   Category nav and sections, item card, inline price editor, forms
 │   ├── modules/          ModuleRoute (role guard from config) + "coming soon" preview page
@@ -64,8 +67,8 @@ src/
 │   ├── theme/            Theme provider (dark by default, persisted)
 │   └── …                 Logo, RoleBadge, UserAvatar, ThemeToggle, FullScreenLoader,
 │                         FormField, ConfirmDialog, EmptyState
-├── hooks/                useDocumentTitle, useFormState (client + server validation)
-├── lib/                  cn() and name helpers, price formatting/parsing, form and DOM helpers
+├── hooks/                useDocumentTitle, useFormState (client + server validation), useNow
+├── lib/                  cn() and name helpers, price and date/time helpers, form and DOM helpers
 ├── router.tsx            Route tree
 ├── main.tsx              Providers: Query, Theme, Motion, Tooltip, Router, Toaster
 └── index.css             Design tokens (light + dark), base styles, grain
@@ -75,7 +78,7 @@ src/
 
 1. Add an entry to `MODULES` in [src/config/modules.ts](src/config/modules.ts) with its roles, icon and copy.
 2. That is enough for it to show up in the sidebar and on the dashboard for those roles, with `/m/<id>` guarded by role.
-3. When the real screen ships, set `status: 'available'` and add a static route in [src/router.tsx](src/router.tsx) wrapped in `<ModuleRoute id="…">`. The static route outranks the `/m/:moduleId` preview, and `ModuleRoute` reuses the roles from the config, so the route guard and the navigation can't drift apart. The Tables and Menu modules are worked examples.
+3. When the real screen ships, set `status: 'available'` and add a static route in [src/router.tsx](src/router.tsx) wrapped in `<ModuleRoute id="…">`. The static route outranks the `/m/:moduleId` preview, and `ModuleRoute` reuses the roles from the config, so the route guard and the navigation can't drift apart. The Tables, Reservations and Menu modules are worked examples.
 
 ---
 
@@ -95,7 +98,7 @@ The host's floor view. The API allows Host and Manager, so the module config, ro
 
 | Role    | Can do                                                                  |
 | ------- | ----------------------------------------------------------------------- |
-| Host    | See the floor; seat, reserve and clear tables                           |
+| Host    | See the floor; seat, hold and clear tables, and seat booked parties     |
 | Manager | Everything a host can, plus add, edit (number, seats) and delete tables |
 
 **The floor.**
@@ -103,36 +106,106 @@ The host's floor view. The API allows Host and Manager, so the module config, ro
 - **Filter chips:** All, Free, Seated and Reserved, with counts. The choice is kept in `?status=`.
 - **Table cards:** each card shows the table number large, a status badge and a top-down SVG sketch of the table with its chairs: round for up to 2 seats, square for up to 4, and a long banquet table beyond that. Banquet tables over 8 seats span two grid columns.
 
-**Status treatment.** The API's `Available`, `Occupied` and `Reserved` appear as the host's words: Free, Seated and Reserved.
+**Status treatment.** The server computes each table's status from its stored state and the book, so the client displays it instead of deriving it. `GET /api/tables` returns `status`, `isHeld` and `nextReservation` (the nearest confirmed booking in the next 12 hours). [status.ts](src/features/tables/status.ts) turns that into what the host needs to know:
 
-| Status   | Look                                                                            |
-| -------- | ------------------------------------------------------------------------------- |
-| Free     | Calm neutral card, outlined chairs                                              |
-| Seated   | Warm copper, the brand accent: tinted card with a soft glow, filled copper chairs |
-| Reserved | A second, cool slate-blue tone (`--reserved` in `index.css`) with a dashed outline |
+| Floor state | From the API                                         | Card                                                                                        |
+| ----------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Free        | `Available`                                          | Calm neutral card; a later booking shows as "Next: 19:30 · Giorgi (2)"                       |
+| Seated      | `Occupied`                                           | Warm copper, the brand accent: tinted card with a soft glow, filled chairs; a "Next" hint if booked later |
+| Held        | `Reserved`, `isHeld: true`                           | The cool slate-blue reserved tone (`--reserved`) with a dashed outline and "Held"          |
+| Booked      | `Reserved`, `isHeld: false` (a booking is due within 45 minutes or up to 20 minutes late) | Reserved tone with the booking: "Giorgi Beridze · 2 · 13:30", plus a "Late" badge when `isLate` |
 
-**Quick actions.** Tapping a card opens a popover that offers only the transitions the API allows from the current status. The rules are copied from the `Table` entity into [status.ts](src/features/tables/status.ts):
-- **Seat guests** works from Free or Reserved.
-- **Reserve** works from Free only.
-- **Clear table** works from Seated or Reserved.
+**Quick actions.** Tapping a card opens a popover with only the actions valid in its state:
 
-Changes are **optimistic** and **rolled back** if the API refuses. A 400 from a status change carries the domain message (for example "Only available tables can be reserved"), which appears as a toast. With several quick taps in flight, only the last one to settle refetches.
+| Floor state | Actions                                                                                   |
+| ----------- | ----------------------------------------------------------------------------------------- |
+| Free        | Seat guests (`POST /{id}/occupy`), Hold (`POST /{id}/reserve`)                            |
+| Held        | Seat guests (`occupy`), Release hold (`POST /{id}/free`)                                  |
+| Booked      | **Seat Giorgi Beridze**, which arrives the booking (`POST /api/reservations/{reservationId}/arrive`); Seat walk-in instead (`occupy`), behind a confirmation that warns a booking is due |
+| Seated      | Clear table (`free`)                                                                      |
 
-**Staying current.** Other hosts change the floor too, so the list refetches every 30 seconds and when the window regains focus.
+The manual action is called **Hold** throughout the UI; the endpoint is still `/reserve`.
+
+- **Optimistic updates:** every action updates the card at once and rolls back if the API refuses. A 400 carries the domain message, which appears as a toast.
+- **After a status change:** the response doesn't include booking details, so the card keeps its cached `nextReservation` until the list refetches.
+- **Seating a booking** also refreshes the Reservations queries.
+- **Several quick taps:** only the last one to settle refetches.
+
+**Staying current.** Status depends on the clock, since tables turn Reserved as bookings approach, and other hosts change the floor too. So the list refetches every 60 seconds and when the window regains focus.
 
 **Managing tables (Manager).**
 - **Add table:** a dialog with the table number (defaults to the next free number) and a seats stepper with -/+ buttons for tablets. It includes a live preview of the table shape.
 - **Validation:** client rules mirror the API (number 1-999, seats 1-30). Server errors keyed `TableNumber` or `Capacity` appear under their fields.
 - **Conflicts:** a 409 such as "Table 12 already exists." appears as a form-level alert, which clears as soon as the form is edited.
-- **Deleting:** only free tables can be deleted. The confirm dialog reads the table's live status and explains why deletion is blocked; the server's 409 remains the backstop.
+- **Deleting:** the API refuses a table whose stored status isn't Available, so seated and held tables are blocked, with the reason given. A table that shows as Reserved only because a booking is near can be deleted, but the dialog warns that the booking would be left without a table. The server's 409 remains the backstop.
 
 **Dashboard.** For Host and Manager, the "Tables seated" stat shows real data (seated out of total, an occupancy bar and covers seated) and links to the floor. Other roles keep the placeholder.
+
+**Upcoming bookings.** Booking information comes from the API's `nextReservation`, not from a client-side calculation. See the status table above for how each card shows it.
 
 **Built for the door.** Hosts use tablets, so tap targets are generous:
 - table cards at least 12rem tall
 - filter chips 40px
 - popover actions 48px
 - manage buttons 40px
+
+---
+
+## Reservations module (`/m/reservations`)
+
+The host's book. The API allows Host and Manager, so the module config, route guard and sidebar are limited to those two roles. Both roles can do everything on this page.
+
+**Day view.**
+- **Navigation:** previous / Today / next, plus a native date picker, which is the most comfortable picker on a tablet. The day is kept in `?date=YYYY-MM-DD`; today is the bare URL.
+- **Fetching:** the page asks for `from` = local midnight and `to` = the next local midnight, both converted to UTC ISO. Next midnight is built from calendar parts rather than by adding 24 hours, so days with a DST change are still correct.
+- **Times:** always displayed in the browser's time zone. The API's `reservationTime` is a .NET `DateTime`; if it ever arrives without a `Z` (`DateTimeKind.Unspecified`), [lib/dates.ts](src/lib/dates.ts) still treats it as UTC, so a missing designator can't shift a booking by the local offset.
+- **Header:** bookings for the day, expected covers (party sizes, excluding Cancelled and No-show) and how many have arrived.
+
+**Timeline.** Bookings are grouped by hour, with an hour rail on tablet and desktop. On today's page a copper "Now" marker sits between past and upcoming hours. Each row shows the time, guest name, party size, table, phone (a `tel:` link, so tapping calls on a phone or tablet), notes and a status badge.
+
+| Status    | Look                                                             |
+| --------- | ---------------------------------------------------------------- |
+| Pending   | Dashed outline, neutral: waiting to be confirmed                 |
+| Confirmed | The cool reserved tone, matching reserved tables on the floor    |
+| Arrived   | Seated copper, matching seated tables                            |
+| Cancelled | Muted, with the name struck through                              |
+| No-show   | Muted, with a quiet red badge                                    |
+
+**Timing highlights.**
+- **Arriving soon:** a Pending or Confirmed booking due within 30 minutes gets a copper "Arriving in 12 min" chip.
+- **Late:** a Confirmed booking whose time has passed gets a red "Late by 20 min" chip, and No-show appears as a button next to Seat guests.
+- The clock re-renders every 30 seconds, so these states change without a reload.
+
+**Actions.** Only transitions the API allows are offered. The rules are copied from the `Reservation` entity into [status.ts](src/features/reservations/status.ts):
+
+| Status    | Actions                                                    |
+| --------- | ---------------------------------------------------------- |
+| Pending   | Confirm, Reschedule, Edit, Cancel                          |
+| Confirmed | Seat guests, No-show, Reschedule, Edit, Cancel             |
+| Arrived, Cancelled, No-show | None: these statuses are final           |
+
+- **Status changes** (Confirm, Seat guests, No-show, Cancel) are optimistic and rolled back if the API refuses. A 400 carries the domain message ("Only confirmed reservations can be marked as arrived"), which appears as a toast.
+- **No-show** is offered only once the booking time has passed, because the API rejects earlier no-shows. Before then the menu item is soft-disabled: it stays focusable, and a tooltip says when it becomes available.
+- **Tables stay in sync:** creating, editing, rescheduling, cancelling, confirming, a no-show and Seat guests all invalidate the tables queries, because the server derives table status and each table's next booking from the book.
+- **Cancel** asks for confirmation first.
+
+**New reservation.**
+- **When:** a date and a time chosen from 15-minute slots in service hours (11:00 to 23:00). Past slots are hidden for today.
+- **Who:** party size uses a -/+ stepper; guest name, phone and notes are typed.
+- **Table:** the picker offers only tables that seat the party, smallest fit first, with the capacity shown. If the party grows past the chosen table, the choice is cleared.
+- **Validation:** client rules mirror the API (name at most 150 characters, phone at most 20, party 1-30, notes at most 1000, time in the future). Server errors keyed `TableId`, `GuestName`, `GuestPhoneNumber`, `GuestCount`, `ReservationTime` or `Notes` appear under their fields; `ReservationTime` maps to the time field.
+- **Other errors:** a 400 detail ("Table 2 seats only 2 guests.") or a 409 ("Table 5 is already booked around that time.") appears as a form-level alert.
+- **After booking,** the page follows the new booking to its day.
+
+**Reschedule** takes a date and time only, with a from/to preview. A booking already at an off-grid time (say 15:02) keeps that time selectable. A 409 overlap appears as a form-level alert.
+
+**Edit** changes the guest details (name, phone, party size, notes). The party size is checked against the booking's table capacity.
+
+**Staying current.** The day refetches every 30 seconds and when the window regains focus.
+
+**Elsewhere in the app.**
+- **Dashboard:** "Covers tonight" shows real data for Host and Manager: today's expected covers, a copper bar for guests already arrived, and the count of active bookings. Other roles keep the placeholder.
+- **Tables:** cards show the booked guest or a "Next: 19:30" hint from the API's `nextReservation`, and a booked table can seat its party directly (see the Tables module).
 
 ---
 

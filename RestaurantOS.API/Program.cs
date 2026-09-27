@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using RestaurantOS.API.Middleware;
 using RestaurantOS.API.OpenApi;
+using RestaurantOS.API.Services;
 using RestaurantOS.Application;
+using RestaurantOS.Application.Common.Interfaces;
 using RestaurantOS.Infrastructure;
 using RestaurantOS.Infrastructure.Authentication;
 using RestaurantOS.Infrastructure.Persistence;
@@ -12,6 +14,8 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplication();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var jwtSettings = builder.Configuration

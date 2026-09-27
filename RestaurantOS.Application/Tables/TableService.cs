@@ -3,23 +3,27 @@ using RestaurantOS.Application.Common.Exceptions;
 using RestaurantOS.Application.Common.Interfaces;
 using RestaurantOS.Domain.Entities;
 using RestaurantOS.Domain.Enums;
+using RestaurantOS.Application.Reservations;
 
 namespace RestaurantOS.Application.Tables;
 
 public class TableService : ITableService
 {
+    private readonly IReservationRepository _reservationRepository;
     private readonly ITableRepository _tableRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IValidator<CreateTableRequest> _createValidator;
     private readonly IValidator<UpdateTableRequest> _updateValidator;
 
     public TableService(
-        ITableRepository tableRepository,
-        IUnitOfWork unitOfWork,
-        IValidator<CreateTableRequest> createValidator,
-        IValidator<UpdateTableRequest> updateValidator)
+    ITableRepository tableRepository,
+    IReservationRepository reservationRepository,
+    IUnitOfWork unitOfWork,
+    IValidator<CreateTableRequest> createValidator,
+    IValidator<UpdateTableRequest> updateValidator)
     {
         _tableRepository = tableRepository;
+        _reservationRepository = reservationRepository;
         _unitOfWork = unitOfWork;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
@@ -27,10 +31,41 @@ public class TableService : ITableService
 
     public async Task<IReadOnlyList<TableResponse>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        var now = DateTime.UtcNow;
+
         var tables = await _tableRepository.GetAllAsync(cancellationToken);
-        return tables.Select(t => t.ToResponse()).ToList();
+
+        var upcoming = await _reservationRepository.GetConfirmedBetweenAsync(
+            now - ReservationPolicy.LateGrace,
+            now + ReservationPolicy.LookAhead,
+            cancellationToken);
+
+        var nextByTable = upcoming
+            .GroupBy(r => r.TableId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        return tables.Select(table =>
+        {
+            nextByTable.TryGetValue(table.Id, out var next);
+
+            var info = next is null
+                ? null
+                : new TableReservationInfo(next.Id, next.ReservationTime, next.GuestName, next.GuestCount, next.ReservationTime < now);
+
+            return table.ToResponse(GetEffectiveStatus(table, next, now), info);
+        }).ToList();
     }
 
+    private static TableStatus GetEffectiveStatus(Table table, Domain.Entities.Reservation? next, DateTime now)
+    {
+        if (table.Status != TableStatus.Available)
+            return table.Status;
+
+        if (next is not null && next.ReservationTime <= now + ReservationPolicy.HoldBefore)
+            return TableStatus.Reserved;
+
+        return TableStatus.Available;
+    }
     public async Task<TableResponse> CreateAsync(CreateTableRequest request, CancellationToken cancellationToken = default)
     {
         await _createValidator.ValidateAndThrowAsync(request, cancellationToken);

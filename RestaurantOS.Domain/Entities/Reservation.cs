@@ -77,6 +77,8 @@ public class Reservation : BaseEntity
     {
         if (Status != ReservationStatus.Confirmed)
             throw new DomainException("Only confirmed reservations can be marked as no-show");
+        if (DateTime.UtcNow < ReservationTime)
+            throw new DomainException("Cannot mark a reservation as no-show before its time.");
 
         Status = ReservationStatus.NoShow;
         MarkAsUpdated();

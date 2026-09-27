@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { formatTime } from '@/lib/dates'
 import { OccupancyBar } from './components/OccupancyBar'
 import { StatusFilter } from './components/StatusFilter'
 import { TableCard } from './components/TableCard'
@@ -18,9 +19,29 @@ import { TablesSkeleton } from './components/TablesSkeleton'
 import { countFloor } from './floor'
 import { notifyTableError, useDeleteTable, useTables } from './hooks'
 import { useTablePermissions } from './permissions'
-import { STATUS_FILTERS, STATUS_LABELS, parseStatusFilter } from './status'
+import { STATUS_FILTERS, STATUS_LABELS, floorStateOf, parseStatusFilter } from './status'
 
 const EASE = [0.2, 0.8, 0.2, 1] as const
+
+/**
+ * The API refuses to delete a table whose stored status isn't Available (seated or held).
+ * A table shown as Reserved only because a booking is near is still stored as Available.
+ */
+function canDelete(table: DiningTable) {
+  const state = floorStateOf(table)
+  return state === 'free' || state === 'booked'
+}
+
+function deleteDescription(table: DiningTable) {
+  const state = floorStateOf(table)
+  if (state === 'seated') return `Table ${table.tableNumber} is seated right now. Clear it before deleting.`
+  if (state === 'held') return `Table ${table.tableNumber} is on hold. Release the hold before deleting.`
+  const next = table.nextReservation
+  if (next) {
+    return `${next.guestName} (party of ${next.guestCount}) is booked here at ${formatTime(new Date(next.reservationTime))}. Move that booking first, or it will be left without a table.`
+  }
+  return 'It will be removed from the floor plan.'
+}
 
 export function TablesPage() {
   useDocumentTitle('Tables')
@@ -65,7 +86,7 @@ export function TablesPage() {
           <h1 className="mt-3 text-4xl leading-[1.05] font-light sm:text-5xl">Tables</h1>
           <p className="mt-3 text-[15px] text-muted-foreground" aria-live="polite">
             {loading || failed || counts.total === 0 ? (
-              'Seat, reserve and clear tables as the night moves.'
+              'Seat, hold and clear tables as the night moves.'
             ) : (
               <>
                 <span className="text-primary">{counts.byStatus.Occupied} seated</span>
@@ -119,7 +140,7 @@ export function TablesPage() {
           description={
             permissions.canManage
               ? 'Add your first table to start building the floor.'
-              : 'Once a manager adds tables, you can seat and reserve them here.'
+              : 'Once a manager adds tables, you can seat and hold them here.'
           }
           action={
             permissions.canManage && (
@@ -196,13 +217,9 @@ export function TablesPage() {
               open={deleteOpen}
               onOpenChange={setDeleteOpen}
               title={`Delete table ${deleteTarget.tableNumber}?`}
-              description={
-                deleteTarget.status === 'Available'
-                  ? 'It will be removed from the floor plan.'
-                  : `Table ${deleteTarget.tableNumber} is ${STATUS_LABELS[deleteTarget.status].toLowerCase()} right now. Clear it before deleting. Only free tables can be removed.`
-              }
+              description={deleteDescription(deleteTarget)}
               confirmLabel="Delete table"
-              confirmDisabled={deleteTarget.status !== 'Available'}
+              confirmDisabled={!canDelete(deleteTarget)}
               onConfirm={runDelete}
             />
           )}

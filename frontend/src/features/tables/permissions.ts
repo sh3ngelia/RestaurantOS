@@ -3,7 +3,7 @@ import type { Role } from '@/config/roles'
 import { useSession } from '@/features/auth/useAuth'
 
 export interface TablePermissions {
-  /** Open the floor view and seat, reserve or clear tables (Host, Manager). */
+  /** Open the floor view and seat, hold or clear tables (Host, Manager). */
   canUseFloor: boolean
   /** Add, edit and delete tables (Manager). */
   canManage: boolean
