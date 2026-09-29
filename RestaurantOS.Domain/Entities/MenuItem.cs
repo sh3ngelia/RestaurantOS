@@ -12,10 +12,18 @@ public class MenuItem : BaseEntity
     public MenuCategory Category { get; private set; }
     public PreparationStation PreparationStation { get; private set; }
     public bool IsAvailable { get; private set; }
+    public Allergen Allergens { get; private set; }
     public int PreparationTimeInMinutes { get; private set; }
 
     private MenuItem() { }
-    public MenuItem(string name, string? description, decimal price, Guid categoryId, PreparationStation preparationStation, int preparationTimeInMinutes)
+    public MenuItem(
+        string name,
+        string? description,
+        decimal price, 
+        Guid categoryId,
+        PreparationStation preparationStation,
+        int preparationTimeInMinutes,
+        Allergen allergens = Allergen.None)
     {
         Validate(name, price, preparationTimeInMinutes);
         Name = name;
@@ -24,10 +32,17 @@ public class MenuItem : BaseEntity
         CategoryId = categoryId;
         PreparationStation = preparationStation;
         IsAvailable = true;
+        Allergens = allergens;
         PreparationTimeInMinutes = preparationTimeInMinutes;
     }
 
-    public void Update(string name, string? description, decimal price, Guid categoryId, PreparationStation preparationStation, int preparationTimeInMinutes)
+    public void Update(string name,
+        string? description,
+        decimal price,
+        Guid categoryId,
+        PreparationStation preparationStation,
+        int preparationTimeInMinutes,
+        Allergen allergens = Allergen.None)
     {
         Validate(name, price, preparationTimeInMinutes);
         Name = name;
@@ -35,6 +50,7 @@ public class MenuItem : BaseEntity
         Price = price;
         CategoryId = categoryId;
         PreparationStation = preparationStation;
+        Allergens = allergens;
         PreparationTimeInMinutes = preparationTimeInMinutes;
         MarkAsUpdated();
     }

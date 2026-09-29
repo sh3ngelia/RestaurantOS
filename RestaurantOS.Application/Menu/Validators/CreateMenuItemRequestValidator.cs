@@ -24,5 +24,8 @@ public class CreateMenuItemRequestValidator : AbstractValidator<CreateMenuItemRe
         
         RuleFor(x => x.PreparationTimeInMinutes)
             .InclusiveBetween(1, 240).WithMessage("Preparation time must be between 1 and 240 minutes.");
+
+        RuleForEach(x => x.Allergens)
+            .IsInEnum().WithMessage("Unknown allergen.");
     }
 }

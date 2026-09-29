@@ -61,7 +61,8 @@ public class MenuItemService : IMenuItemService
             request.Price,
             request.CategoryId,
             request.PreparationStation,
-            request.PreparationTimeInMinutes);
+            request.PreparationTimeInMinutes,
+            request.Allergens.ToFlags());
 
         _itemRepository.Add(item);
 
@@ -89,7 +90,8 @@ public class MenuItemService : IMenuItemService
             request.Price,
             request.CategoryId,
             request.PreparationStation,
-            request.PreparationTimeInMinutes);
+            request.PreparationTimeInMinutes,
+            request.Allergens.ToFlags());
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
