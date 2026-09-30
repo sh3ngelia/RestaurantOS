@@ -5,7 +5,7 @@ namespace RestaurantOS.Domain.Entities;
 
 public class Order : BaseEntity
 {
-    public string OrderNumber { get; private set; }
+    public string OrderNumber { get; private set; } = string.Empty;
     public OrderType Type { get; private set; }
     public OrderStatus Status { get; private set; }
     public Guid? TableId { get; private set; }
@@ -13,14 +13,26 @@ public class Order : BaseEntity
     public Guid? CustomerId { get; private set; }
     public string? DeliveryAddress { get; private set; }
     public string? Notes { get; private set; }
+
+   public Course? CurrentCourse { get; private set; }
+
     private readonly List<OrderItem> _items = new();
     public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
 
     private Order() { }
-    public Order(string orderNumber, OrderType type, Guid? tableId = null, Guid? waiterId = null, Guid? customerId = null, string? deliveryAddress = null, string? notes = null)
+
+    public Order(
+        string orderNumber,
+        OrderType type,
+        Guid? tableId = null,
+        Guid? waiterId = null,
+        Guid? customerId = null,
+        string? deliveryAddress = null,
+        string? notes = null)
     {
         ValidateOrderNumber(orderNumber);
         ValidateOrderType(type, tableId, waiterId, customerId, deliveryAddress);
+
         OrderNumber = orderNumber;
         Type = type;
         Status = OrderStatus.Opened;
@@ -32,75 +44,120 @@ public class Order : BaseEntity
     }
 
     public decimal TotalAmount => _items
-    .Where(i => i.Status != OrderItemStatus.Cancelled)
-    .Sum(i => i.TotalPrice);
+        .Where(i => i.Status != OrderItemStatus.Cancelled)
+        .Sum(i => i.TotalPrice);
 
-    public void AddItem(Guid menuItemId, int quantity, decimal unitPrice, int? seatNumber = null, string? notes = null)
+    public OrderItem AddItem(MenuItem menuItem, int quantity, Course course, string? notes = null, int? seatNumber = null)
     {
-        if (Status != OrderStatus.Opened)
-            throw new DomainException("Items can only be added to orders that are in progress");
-        var orderItem = new OrderItem(Id, menuItemId, quantity, unitPrice, notes, seatNumber);
-        _items.Add(orderItem);
+        EnsureOpen();
+
+        if (!menuItem.IsAvailable)
+            throw new DomainException($"{menuItem.Name} is not available right now.");
+
+        var item = new OrderItem(Id, menuItem, quantity, course, notes, seatNumber);
+        _items.Add(item);
         MarkAsUpdated();
+        return item;
     }
 
-    public void RemoveItem(Guid orderItemId)
+    public void RemoveItem(Guid itemId)
     {
-        var item = _items.FirstOrDefault(i => i.Id == orderItemId);
-        if (item is null)
-            throw new DomainException("Order item not found");
+        EnsureOpen();
+        var item = GetItem(itemId);
+
+        if (item.Status != OrderItemStatus.Draft)
+            throw new DomainException("Only items that have not been sent can be removed. Cancel the item instead.");
+
         _items.Remove(item);
         MarkAsUpdated();
     }
 
-    public void SendToKitchen()
+    public void UpdateItemQuantity(Guid itemId, int quantity) =>
+        ChangeItem(itemId, i => i.UpdateQuantity(quantity));
+
+    public void SendRound()
     {
-        if (Status != OrderStatus.Opened)
-            throw new DomainException("Only opened orders can be sent to the kitchen");
-        if (!_items.Any())
-            throw new DomainException("Cannot send an order with no items to the kitchen");
-        Status = OrderStatus.SentToKitchen;
-        MarkAsUpdated();
-    }
-    
-    public void StartPreparation()
-    {
-        if (Status != OrderStatus.SentToKitchen)
-            throw new DomainException("Only orders that are sent to the kitchen can be started for preparation");
-        Status = OrderStatus.InProgress;
+        EnsureOpen();
+
+        var drafts = _items.Where(i => i.Status == OrderItemStatus.Draft).ToList();
+        if (drafts.Count == 0)
+            throw new DomainException("There are no new items to send.");
+
+        var kitchenDrafts = drafts.Where(i => i.Station == PreparationStation.Kitchen).ToList();
+        if (CurrentCourse is null && kitchenDrafts.Count > 0)
+            CurrentCourse = kitchenDrafts.Min(i => i.Course);
+
+        foreach (var item in drafts)
+        {
+            var fireNow = item.Station == PreparationStation.Bar || item.Course <= CurrentCourse;
+            item.Send(fireNow);
+        }
+
         MarkAsUpdated();
     }
 
-    public void MarkAsReady()
+    public void FireNextCourse()
     {
-        if(Status != OrderStatus.SentToKitchen && Status != OrderStatus.InProgress)
-            throw new DomainException("Only orders that are sent to the kitchen or in progress can be marked as ready");
-        Status = OrderStatus.Ready;
+        EnsureOpen();
+
+        var held = _items.Where(i => i.Status == OrderItemStatus.Held).ToList();
+        if (held.Count == 0)
+            throw new DomainException("There is no held course to fire.");
+
+        var nextCourse = held.Min(i => i.Course);
+        CurrentCourse = nextCourse;
+
+        foreach (var item in held.Where(i => i.Course <= nextCourse))
+            item.Fire();
+
         MarkAsUpdated();
     }
 
-    public void MarkAsServed()
-    {
-        if(Status != OrderStatus.Ready)
-            throw new DomainException("Only ready orders can be marked as served");
-        Status = OrderStatus.Served;
-        MarkAsUpdated();
-    }
+    public void StartItem(Guid itemId) => ChangeItem(itemId, i => i.StartPreparation());
+    public void MarkItemReady(Guid itemId) => ChangeItem(itemId, i => i.MarkAsReady());
+    public void MarkItemServed(Guid itemId) => ChangeItem(itemId, i => i.MarkAsServed());
+    public void CancelItem(Guid itemId) => ChangeItem(itemId, i => i.Cancel());
 
     public void Close()
     {
-        if (Status != OrderStatus.Served)
-            throw new DomainException("Only served orders can be closed");
+        EnsureOpen();
+
+        if (_items.Any(i => i.IsActive))
+            throw new DomainException("All items must be served or cancelled before the order can be closed.");
+
+        if (!_items.Any(i => i.Status == OrderItemStatus.Served))
+            throw new DomainException("Nothing was served on this order. Cancel it instead.");
+
         Status = OrderStatus.Closed;
         MarkAsUpdated();
     }
 
     public void Cancel()
     {
-        if (Status == OrderStatus.Closed || Status == OrderStatus.Cancelled)
-            throw new DomainException("Only opened, sent to kitchen, in progress, or ready orders can be cancelled");
+        EnsureOpen();
+
+        if (_items.Any(i => i.Status is not (OrderItemStatus.Draft or OrderItemStatus.Cancelled)))
+            throw new DomainException("Items have already been sent. Cancel them individually instead.");
+
         Status = OrderStatus.Cancelled;
         MarkAsUpdated();
+    }
+
+    private void ChangeItem(Guid itemId, Action<OrderItem> change)
+    {
+        EnsureOpen();
+        change(GetItem(itemId));
+        MarkAsUpdated();
+    }
+
+    private OrderItem GetItem(Guid itemId) =>
+        _items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new DomainException("Item not found on this order.");
+
+    private void EnsureOpen()
+    {
+        if (Status != OrderStatus.Opened)
+            throw new DomainException("This order is no longer open.");
     }
 
     private static void ValidateOrderNumber(string orderNumber)
@@ -110,11 +167,11 @@ public class Order : BaseEntity
     }
 
     private static void ValidateOrderType(
-    OrderType type,
-    Guid? tableId,
-    Guid? waiterId,
-    Guid? customerId,
-    string? deliveryAddress)
+        OrderType type,
+        Guid? tableId,
+        Guid? waiterId,
+        Guid? customerId,
+        string? deliveryAddress)
     {
         switch (type)
         {

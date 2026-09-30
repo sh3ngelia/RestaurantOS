@@ -6,5 +6,7 @@ public enum OrderItemStatus
     InProgress = 2,
     Ready = 3,
     Served = 4,
-    Cancelled = 5
+    Cancelled = 5,
+    Draft = 6,
+    Held = 7
 }

@@ -7,98 +7,124 @@ public class OrderItem : BaseEntity
 {
     public Guid OrderId { get; private set; }
     public Guid MenuItemId { get; private set; }
-    public MenuItem MenuItem { get; private set; }
-    public int Quantity { get; private set; }
-    public decimal UnitPrice { get; private set; }
-    public int? SeatNumber { get; private set; }
-    public OrderItemStatus Status { get; private set; }
-    public string? Notes { get; private set; }
+    public MenuItem MenuItem { get; private set; } = null!;
 
-    private OrderItem() { }
-    public OrderItem(
-        Guid orderId, 
-        Guid menuItemId, 
-        int quantity, 
-        decimal unitPrice,
-        string? notes = null,
-        int? seatNumber = null)
+    // Snapshot — შეკვეთის მომენტისას
+    public string MenuItemName { get; private set; } = string.Empty;
+    public decimal UnitPrice { get; private set; }
+    public PreparationStation Station { get; private set; }
+    public Allergen Allergens { get; private set; }
+
+    public Course Course { get; private set; }
+    public int Quantity { get; private set; }
+    public int? SeatNumber { get; private set; }
+    public string? Notes { get; private set; }
+    public OrderItemStatus Status { get; private set; }
+
+    // სამზარეულოს ტაიმერებისა და სტატისტიკისთვის
+    public DateTime? FiredAt { get; private set; }
+    public DateTime? ReadyAt { get; private set; }
+
+    private OrderItem() { } // EF Core
+
+    internal OrderItem(Guid orderId, MenuItem menuItem, int quantity, Course course, string? notes, int? seatNumber)
     {
-        Validate(quantity, unitPrice, seatNumber);
+        ValidateQuantity(quantity);
+        ValidateSeatNumber(seatNumber);
+
         OrderId = orderId;
-        MenuItemId = menuItemId;
+        MenuItemId = menuItem.Id;
+        MenuItemName = menuItem.Name;
+        UnitPrice = menuItem.Price;
+        Station = menuItem.PreparationStation;
+        Allergens = menuItem.Allergens;
+        Course = course;
         Quantity = quantity;
-        UnitPrice = unitPrice;
         Notes = notes;
         SeatNumber = seatNumber;
-        Status = OrderItemStatus.Pending;
+        Status = OrderItemStatus.Draft;
     }
 
     public decimal TotalPrice => UnitPrice * Quantity;
 
-    public void UpdateQuantity(int newQuantity)
+    public bool IsActive => Status is not (OrderItemStatus.Served or OrderItemStatus.Cancelled);
+
+    internal void UpdateQuantity(int quantity)
     {
-        if(Status is not OrderItemStatus.Pending)
-            throw new DomainException("Only pending order items can have their quantity updated");
-        ValidateQuantity(newQuantity);
-        Quantity = newQuantity;
+        if (Status != OrderItemStatus.Draft)
+            throw new DomainException("Quantity can only be changed before the item is sent.");
+
+        ValidateQuantity(quantity);
+        Quantity = quantity;
         MarkAsUpdated();
     }
 
-    public void UpdateNotes(string? newNotes)
+    internal void Send(bool fireNow)
     {
-        Notes = newNotes;
+        if (Status != OrderItemStatus.Draft)
+            throw new DomainException("Only new items can be sent.");
+
+        if (fireNow)
+        {
+            Fire();
+            return;
+        }
+
+        Status = OrderItemStatus.Held;
         MarkAsUpdated();
     }
 
-    public void StartPreparation()
+    internal void Fire()
     {
-        if (Status is not OrderItemStatus.Pending)
-            throw new DomainException("Only pending order items can be started for preparation");
+        if (Status is not (OrderItemStatus.Draft or OrderItemStatus.Held))
+            throw new DomainException("Only new or held items can be fired.");
+
+        Status = OrderItemStatus.Pending;
+        FiredAt = DateTime.UtcNow;
+        MarkAsUpdated();
+    }
+
+    internal void StartPreparation()
+    {
+        if (Status != OrderItemStatus.Pending)
+            throw new DomainException("Only fired items can be started.");
+
         Status = OrderItemStatus.InProgress;
         MarkAsUpdated();
     }
 
-    public void MarkAsReady()
+    internal void MarkAsReady()
     {
-        if (Status is not OrderItemStatus.InProgress)
-            throw new DomainException("Only in-progress order items can be marked as ready");
+        if (Status is not (OrderItemStatus.Pending or OrderItemStatus.InProgress))
+            throw new DomainException("Only fired or in-progress items can be marked as ready.");
+
         Status = OrderItemStatus.Ready;
+        ReadyAt = DateTime.UtcNow;
         MarkAsUpdated();
     }
 
-    public void MarkAsServed()
+    internal void MarkAsServed()
     {
-        if (Status is not OrderItemStatus.Ready)
-            throw new DomainException("Only ready order items can be marked as served");
+        if (Status != OrderItemStatus.Ready)
+            throw new DomainException("Only ready items can be served.");
+
         Status = OrderItemStatus.Served;
         MarkAsUpdated();
     }
 
-    public void Cancel()
+    internal void Cancel()
     {
-        if (Status is OrderItemStatus.Served or OrderItemStatus.Cancelled or OrderItemStatus.Ready)
-            throw new DomainException("Only pending or in-progress items can be cancelled"); 
+        if (Status is OrderItemStatus.Ready or OrderItemStatus.Served or OrderItemStatus.Cancelled)
+            throw new DomainException("Ready, served or cancelled items cannot be cancelled.");
+
         Status = OrderItemStatus.Cancelled;
         MarkAsUpdated();
-    }
-
-    private static void Validate(int quantity, decimal unitPrice, int? seatNumber)
-    {
-        ValidateQuantity(quantity);
-        ValidateUnitPrice(unitPrice);
-        ValidateSeatNumber(seatNumber); 
     }
 
     private static void ValidateQuantity(int quantity)
     {
         if (quantity <= 0)
             throw new DomainException("Quantity must be greater than zero");
-    }
-
-    private static void ValidateUnitPrice(decimal unitPrice)
-    {
-        if (unitPrice <= 0)
-            throw new DomainException("Unit price must be greater than zero");
     }
 
     private static void ValidateSeatNumber(int? seatNumber)

@@ -27,6 +27,18 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
 
         builder.Ignore(oi => oi.TotalPrice);
 
+        builder.Property(oi => oi.MenuItemName)
+            .IsRequired()
+            .HasMaxLength(150);
+
+        builder.Property(oi => oi.Station)
+            .IsRequired();
+
+        builder.Property(oi => oi.Course)
+            .IsRequired();
+
+        builder.Ignore(oi => oi.IsActive);
+
         builder.HasOne(oi => oi.MenuItem)
             .WithMany()
             .HasForeignKey(oi => oi.MenuItemId)
