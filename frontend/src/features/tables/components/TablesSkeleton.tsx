@@ -1,25 +1,23 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { TABLE_GRID } from '../floor'
 
 export function TablesSkeleton() {
   return (
-    <div role="status" aria-live="polite" className="space-y-6">
+    <div role="status" aria-live="polite" className="space-y-4">
       <span className="sr-only">Loading the floor…</span>
-      <div className="flex gap-2 overflow-hidden">
+      <div className="flex gap-1.5 overflow-hidden">
         {[16, 20, 22, 24].map((w, i) => (
-          <Skeleton key={i} className="h-10 shrink-0 rounded-full" style={{ width: `${w * 4}px` }} />
+          <Skeleton key={i} className="h-8 shrink-0" style={{ width: `${w * 4}px` }} />
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5">
-        {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} className="min-h-48 rounded-2xl border border-border bg-card p-5">
+      <div className={TABLE_GRID}>
+        {Array.from({ length: 10 }, (_, i) => (
+          <div key={i} className="min-h-40 rounded-md border border-border bg-card p-3">
             <div className="flex justify-between">
-              <div className="space-y-2">
-                <Skeleton className="h-2.5 w-10" />
-                <Skeleton className="h-8 w-10" />
-              </div>
-              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-16" />
+              <Skeleton className="h-5 w-14" />
             </div>
-            <Skeleton className="mx-auto mt-5 h-16 w-3/4 rounded-xl" />
+            <Skeleton className="mx-auto mt-5 h-14 w-3/4" />
             <Skeleton className="mt-5 h-3.5 w-16" />
           </div>
         ))}

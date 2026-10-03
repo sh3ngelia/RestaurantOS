@@ -8,23 +8,23 @@ import { ApiError, getErrorMessage } from '@/api/errors'
 import type { DiningTable } from '@/api/tables'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
+import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { useSession } from '@/features/auth/useAuth'
 import { useOpenOrders } from '@/features/orders/hooks'
 import { getOrderPermissions } from '@/features/orders/permissions'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { formatTime } from '@/lib/dates'
+import { listItemMotion } from '@/lib/motion'
 import { OccupancyBar } from './components/OccupancyBar'
 import { StatusFilter } from './components/StatusFilter'
 import { TableCard } from './components/TableCard'
 import { TableFormDialog } from './components/TableFormDialog'
 import { TablesSkeleton } from './components/TablesSkeleton'
-import { countFloor } from './floor'
+import { TABLE_GRID, countFloor } from './floor'
 import { notifyTableError, useDeleteTable, useTables } from './hooks'
 import { useTablePermissions } from './permissions'
 import { STATUS_FILTERS, STATUS_LABELS, floorStateOf, parseStatusFilter } from './status'
-
-const EASE = [0.2, 0.8, 0.2, 1] as const
 
 /**
  * The API refuses to delete a table whose stored status isn't Available (seated or held).
@@ -78,7 +78,7 @@ export function TablesPage() {
     if (!pendingDelete) return
     try {
       await deleteTable.mutateAsync(pendingDelete)
-      toast.success(`Table ${pendingDelete.tableNumber} removed`, { description: 'It’s no longer on the floor.' })
+      toast.success(`Table ${pendingDelete.tableNumber} deleted`)
     } catch (error) {
       notifyTableError(error, `Couldn't delete table ${pendingDelete.tableNumber}`)
       if (!(error instanceof ApiError && error.status === 404)) throw error
@@ -89,52 +89,39 @@ export function TablesPage() {
   const failed = tablesQuery.error
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <p className="font-mono text-[11px] tracking-[0.18em] text-primary uppercase">Service</p>
-          <h1 className="mt-3 text-4xl leading-[1.05] font-light sm:text-5xl">Tables</h1>
-          <p className="mt-3 text-[15px] text-muted-foreground" aria-live="polite">
-            {loading || failed || counts.total === 0 ? (
-              'Seat, hold and clear tables as the night moves.'
-            ) : (
-              <>
-                <span className="text-primary">{counts.byStatus.Occupied} seated</span>
-                {' · '}
-                <span className="text-reserved">{counts.byStatus.Reserved} reserved</span>
-                {' · '}
-                {counts.byStatus.Available} free
-              </>
-            )}
-          </p>
-          {!loading && !failed && <OccupancyBar counts={counts} className="mt-4 max-w-md" />}
-        </div>
-
-        {!loading && !failed && counts.total > 0 && (
-          <div className="flex items-end gap-6">
-            <div className="sm:text-right">
-              <p className="font-serif text-4xl leading-none font-light tabular-nums">
-                {counts.coversSeated}
-                <span className="text-lg text-muted-foreground"> / {counts.totalSeats}</span>
-              </p>
-              <p className="mt-1.5 text-xs text-muted-foreground">covers seated</p>
-            </div>
-            {permissions.canManage && (
-              <Button size="lg" onClick={() => setFormState({ open: true, table: null })}>
-                <Plus aria-hidden="true" />
-                Add table
-              </Button>
-            )}
-          </div>
-        )}
-      </header>
+    <div className="space-y-5">
+      <PageHeader
+        title="Tables"
+        description={
+          !loading && !failed && counts.total > 0 ? (
+            <>
+              {counts.byStatus.Occupied} seated · {counts.byStatus.Reserved} reserved · {counts.byStatus.Available} free
+              {' · '}
+              {counts.coversSeated} / {counts.totalSeats} covers seated
+            </>
+          ) : undefined
+        }
+        actions={
+          !loading &&
+          !failed &&
+          counts.total > 0 &&
+          permissions.canManage && (
+            <Button onClick={() => setFormState({ open: true, table: null })}>
+              <Plus aria-hidden="true" />
+              Add table
+            </Button>
+          )
+        }
+      >
+        {!loading && !failed && <OccupancyBar counts={counts} className="mt-2 max-w-md" />}
+      </PageHeader>
 
       {loading ? (
         <TablesSkeleton />
       ) : failed ? (
         <EmptyState
           icon={CircleAlert}
-          title="The floor didn’t load"
+          title="Couldn’t load tables"
           description={getErrorMessage(failed)}
           action={
             <Button variant="outline" onClick={() => void tablesQuery.refetch()}>
@@ -146,30 +133,25 @@ export function TablesPage() {
       ) : counts.total === 0 ? (
         <EmptyState
           icon={Armchair}
-          title={permissions.canManage ? 'No tables yet' : 'No tables have been set up yet'}
-          description={
-            permissions.canManage
-              ? 'Add your first table to start building the floor.'
-              : 'Once a manager adds tables, you can seat and hold them here.'
-          }
+          title="No tables"
+          description={permissions.canManage ? 'Add a table to start.' : 'A manager needs to add tables first.'}
           action={
             permissions.canManage && (
-              <Button size="lg" onClick={() => setFormState({ open: true, table: null })}>
+              <Button onClick={() => setFormState({ open: true, table: null })}>
                 <Plus aria-hidden="true" />
-                Add your first table
+                Add table
               </Button>
             )
           }
         />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-3">
           <StatusFilter activeId={filterId} counts={counts.byStatus} total={counts.total} />
 
           {visible.length === 0 && filter.status ? (
             <EmptyState
               icon={Armchair}
-              title={`No ${STATUS_LABELS[filter.status].toLowerCase()} tables right now`}
-              description="Tables move between states all night; check back or look at the whole floor."
+              title={`No ${STATUS_LABELS[filter.status].toLowerCase()} tables`}
               action={
                 <Button asChild variant="outline">
                   <Link to={{ search: '' }} replace preventScrollReset>
@@ -182,17 +164,13 @@ export function TablesPage() {
             <LayoutGroup>
               <ul
                 aria-label={filter.status ? `${STATUS_LABELS[filter.status]} tables` : 'All tables'}
-                className="grid grid-flow-dense grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5"
+                className={TABLE_GRID}
               >
                 <AnimatePresence mode="popLayout" initial={false}>
                   {visible.map((table) => (
                     <motion.li
                       key={table.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.24, ease: EASE }}
+                      {...listItemMotion}
                       // Banquet tables get the room they need.
                       className={table.capacity > 8 ? 'col-span-2' : undefined}
                     >

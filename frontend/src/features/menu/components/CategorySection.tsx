@@ -12,9 +12,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { MenuPermissions } from '../permissions'
+import { listItemMotion } from '@/lib/motion'
 import { MenuItemCard } from './MenuItemCard'
-
-const EASE = [0.2, 0.8, 0.2, 1] as const
 
 interface CategorySectionProps {
   category: MenuCategory
@@ -43,22 +42,22 @@ export function CategorySection({
   const headingId = `menu-category-${category.id}`
 
   return (
-    <section aria-labelledby={headingId} className="scroll-mt-32">
-      <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+    <section aria-labelledby={headingId} className="scroll-mt-28">
+      <div className="mb-2 flex items-end justify-between gap-3 border-b border-border pb-1.5">
         <div className="min-w-0">
-          <h2 id={headingId} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xl font-normal">
+          <h2 id={headingId} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold">
             {category.name}
             {!category.isActive && (
-              <Badge variant="muted" size="sm" className="font-sans">
+              <Badge variant="muted" size="sm">
                 Hidden
               </Badge>
             )}
           </h2>
-          {category.description && <p className="mt-1 text-sm text-muted-foreground">{category.description}</p>}
+          {category.description && <p className="mt-0.5 text-[13px] text-muted-foreground">{category.description}</p>}
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          <span className="font-mono text-[11px] tracking-wide text-muted-foreground tabular-nums">
+          <span className="text-xs text-muted-foreground tabular-nums">
             {items.length === totalCount ? totalCount : `${items.length} of ${totalCount}`}{' '}
             {totalCount === 1 ? 'item' : 'items'}
           </span>
@@ -90,28 +89,20 @@ export function CategorySection({
       </div>
 
       {items.length === 0 ? (
-        <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-border-strong px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">Nothing in {category.name} yet.</p>
+        <div className="flex flex-col items-start gap-2 rounded-md border border-dashed border-border-strong px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">No items in {category.name}.</p>
           {permissions.canManage && (
             <Button variant="outline" size="sm" onClick={() => onAddItem(category)}>
               <Plus aria-hidden="true" />
-              Add the first item
+              Add item
             </Button>
           )}
         </div>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+        <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           <AnimatePresence mode="popLayout" initial={false}>
             {items.map((item) => (
-              <motion.li
-                key={item.id}
-                layout
-                initial={{ opacity: 0, scale: 0.97, y: 6 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
-                transition={{ duration: 0.22, ease: EASE }}
-                className="list-none"
-              >
+              <motion.li key={item.id} {...listItemMotion} className="list-none">
                 <MenuItemCard item={item} permissions={permissions} onEdit={onEditItem} onDelete={onDeleteItem} />
               </motion.li>
             ))}

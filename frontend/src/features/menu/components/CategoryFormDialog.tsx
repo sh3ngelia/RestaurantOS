@@ -129,7 +129,7 @@ function CategoryForm({
           value={values.description}
           onChange={(e) => form.setValue('description', e.target.value)}
           onBlur={() => form.touch('description')}
-          placeholder="A line to set the scene for this section."
+          placeholder="Shown under the category name."
           rows={2}
           className="min-h-18"
           aria-invalid={!!form.errorFor('description')}

@@ -19,7 +19,7 @@ export function DayNav({ dayKey, onChange, className }: DayNavProps) {
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      <div className="flex items-center rounded-xl border border-border bg-card p-1">
+      <div className="flex items-center gap-0.5 rounded-md border border-border bg-card p-0.5">
         <NavButton label={`Previous day, ${formatShortDay(addDays(dayKey, -1))}`} onClick={() => onChange(addDays(dayKey, -1))}>
           <ChevronLeft aria-hidden="true" />
         </NavButton>
@@ -28,7 +28,7 @@ export function DayNav({ dayKey, onChange, className }: DayNavProps) {
           onClick={() => onChange(todayKey())}
           disabled={isToday}
           aria-label={isToday ? 'Showing today' : 'Jump to today'}
-          className="h-10 px-4 disabled:opacity-100 disabled:text-muted-foreground"
+          className="disabled:text-muted-foreground disabled:opacity-100"
         >
           Today
         </Button>
@@ -46,9 +46,9 @@ export function DayNav({ dayKey, onChange, className }: DayNavProps) {
         value={dayKey}
         onChange={(e) => isDayKey(e.target.value) && onChange(e.target.value)}
         className={cn(
-          'h-12 rounded-xl border border-border bg-card px-3.5 text-sm text-foreground tabular-nums outline-none [color-scheme:inherit]',
+          'touch-target h-10 rounded-md border border-border bg-card px-3 text-sm text-foreground tabular-nums outline-none [color-scheme:inherit]',
           'transition-[border-color,box-shadow] duration-150 hover:border-border-strong',
-          'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25',
+          'focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring',
         )}
       />
     </div>
@@ -59,7 +59,7 @@ function NavButton({ label, onClick, children }: { label: string; onClick: () =>
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon" onClick={onClick} aria-label={label} className="size-10">
+        <Button variant="ghost" size="icon" onClick={onClick} aria-label={label}>
           {children}
         </Button>
       </TooltipTrigger>

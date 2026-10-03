@@ -120,7 +120,7 @@ function RescheduleForm({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-sunken/60 px-4 py-3 text-sm">
+      <div className="flex items-center gap-3 rounded-md border border-border bg-sunken px-3 py-2.5 text-sm">
         <span className="text-muted-foreground">
           {formatShortDay(original.date)} · <span className="tabular-nums">{formatTime(originalAt)}</span>
         </span>

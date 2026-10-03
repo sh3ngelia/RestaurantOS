@@ -19,3 +19,6 @@ export function countFloor(tables: DiningTable[]): FloorCounts {
   }
   return { total: tables.length, byStatus, coversSeated, totalSeats }
 }
+
+/** The floor grid, shared by the page and its loading skeleton. */
+export const TABLE_GRID = 'grid grid-flow-dense grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'

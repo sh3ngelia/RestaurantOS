@@ -102,7 +102,7 @@ function TableForm({
   }
 
   return (
-    <form noValidate onSubmit={handleSubmit} className="grid gap-5" aria-busy={save.isPending}>
+    <form noValidate onSubmit={handleSubmit} className="grid gap-4" aria-busy={save.isPending}>
       <DialogHeader>
         <DialogTitle>{isEdit ? `Edit table ${table.tableNumber}` : 'Add table'}</DialogTitle>
         <DialogDescription>
@@ -114,7 +114,7 @@ function TableForm({
         <FormAlert message={form.formError} />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <FormField id={id('tableNumber')} label="Table number" error={form.errorFor('tableNumber')}>
           <Input
             id={id('tableNumber')}
@@ -125,7 +125,7 @@ function TableForm({
             onChange={(e) => form.setValue('tableNumber', e.target.value)}
             onBlur={() => form.touch('tableNumber')}
             onFocus={(e) => e.currentTarget.select()}
-            className="h-12 text-lg tabular-nums"
+            className="tabular-nums"
             aria-invalid={!!form.errorFor('tableNumber')}
             aria-describedby={fieldDescribedBy(id('tableNumber'), { error: form.errorFor('tableNumber') })}
           />
@@ -137,7 +137,7 @@ function TableForm({
               type="button"
               variant="outline"
               size="icon"
-              className="size-12 shrink-0"
+              className="shrink-0"
               onClick={() => stepCapacity(-1)}
               disabled={capacityValid && capacity <= TABLE_LIMITS.capacityMin}
               aria-label="One seat fewer"
@@ -151,7 +151,7 @@ function TableForm({
               value={values.capacity}
               onChange={(e) => form.setValue('capacity', e.target.value)}
               onBlur={() => form.touch('capacity')}
-              className="h-12 text-center text-lg tabular-nums"
+              className="text-center tabular-nums"
               aria-invalid={!!form.errorFor('capacity')}
               aria-describedby={fieldDescribedBy(id('capacity'), { error: form.errorFor('capacity') })}
             />
@@ -159,7 +159,7 @@ function TableForm({
               type="button"
               variant="outline"
               size="icon"
-              className="size-12 shrink-0"
+              className="shrink-0"
               onClick={() => stepCapacity(1)}
               disabled={capacityValid && capacity >= TABLE_LIMITS.capacityMax}
               aria-label="One seat more"
@@ -171,9 +171,9 @@ function TableForm({
       </div>
 
       {/* Live preview of the table shape for the chosen size. */}
-      <div className="grid h-28 place-items-center rounded-xl border border-dashed border-border-strong bg-sunken/60 px-4">
+      <div className="grid h-24 place-items-center rounded-md border border-border bg-sunken px-4">
         {capacityValid ? (
-          <TableShape capacity={capacity} status="Available" className="h-20 w-full max-w-72" />
+          <TableShape capacity={capacity} status="Available" className="h-16 w-full max-w-72" />
         ) : (
           <p className="text-sm text-muted-foreground">Enter a seat count to preview the table.</p>
         )}

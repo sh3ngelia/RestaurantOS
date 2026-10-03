@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { useFormState } from '@/hooks/useFormState'
+import { segmentClass, segmentGroupClass } from '@/lib/controls'
 import { fieldDescribedBy, focusById } from '@/lib/forms'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -190,7 +191,7 @@ function ItemForm({
               error: form.errorFor('preparationStation'),
               hint: true,
             })}
-            className="grid grid-cols-2 gap-1 rounded-xl border border-input bg-sunken p-1"
+            className={cn(segmentGroupClass, 'grid-cols-2')}
           >
             {PREPARATION_STATIONS.map((station) => {
               const Icon = STATION_ICONS[station]
@@ -198,12 +199,7 @@ function ItemForm({
                 <RadioGroup.Item
                   key={station}
                   value={station}
-                  className={cn(
-                    'flex h-9 items-center justify-center gap-2 rounded-lg text-sm font-medium text-muted-foreground outline-none',
-                    'transition-[background-color,color,box-shadow] duration-150 hover:text-foreground',
-                    'focus-visible:ring-2 focus-visible:ring-ring',
-                    'data-[state=checked]:bg-card data-[state=checked]:text-foreground data-[state=checked]:shadow-soft',
-                  )}
+                  className={segmentClass(false, 'flex h-9 items-center justify-center gap-2')}
                 >
                   <Icon className="size-4" aria-hidden="true" />
                   {station}

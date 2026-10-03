@@ -9,13 +9,12 @@ const DialogTrigger = DialogPrimitive.Trigger
 const DialogClose = DialogPrimitive.Close
 
 const overlayClassName =
-  'fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px] duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0'
+  'fixed inset-0 z-50 bg-black/60 duration-150 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0'
 
 const contentClassName = cn(
-  'fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto',
-  'rounded-2xl border border-border-strong bg-popover p-6 text-popover-foreground shadow-lifted outline-none',
-  'duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
-  'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+  'fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto',
+  'rounded-md border border-border-strong bg-popover p-5 text-popover-foreground outline-none',
+  'duration-150 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
 )
 
 function DialogContent({
@@ -29,7 +28,7 @@ function DialogContent({
       <DialogPrimitive.Overlay data-slot="dialog-overlay" className={overlayClassName} />
       <DialogPrimitive.Content data-slot="dialog-content" className={cn(contentClassName, className)} {...props}>
         {children}
-        <DialogPrimitive.Close className="absolute top-4 right-4 grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+        <DialogPrimitive.Close className="touch-target-square absolute top-3 right-3 grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
           <X className="size-4" aria-hidden="true" />
           <span className="sr-only">{closeLabel}</span>
         </DialogPrimitive.Close>
@@ -54,7 +53,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
 
 function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
   return (
-    <DialogPrimitive.Title data-slot="dialog-title" className={cn('font-serif text-2xl font-normal', className)} {...props} />
+    <DialogPrimitive.Title data-slot="dialog-title" className={cn('text-base leading-tight font-semibold', className)} {...props} />
   )
 }
 

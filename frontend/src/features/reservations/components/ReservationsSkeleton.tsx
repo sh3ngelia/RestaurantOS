@@ -2,23 +2,23 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export function ReservationsSkeleton() {
   return (
-    <div role="status" aria-live="polite" className="space-y-8">
-      <span className="sr-only">Loading the book…</span>
+    <div role="status" aria-live="polite" className="divide-y divide-border rounded-md border border-border bg-card">
+      <span className="sr-only">Loading reservations…</span>
       {[2, 3].map((count, group) => (
-        <div key={group} className="grid gap-3 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-5">
-          <Skeleton className="h-4 w-12" />
-          <div className="space-y-3">
-            {Array.from({ length: count }, (_, i) => (
-              <div key={i} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:gap-5">
-                <Skeleton className="h-7 w-14" />
-                <div className="flex-1 space-y-2.5">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-3.5 w-64 max-w-full" />
-                </div>
-                <Skeleton className="h-10 w-32 rounded-lg" />
-              </div>
-            ))}
+        <div key={group} className="divide-y divide-border">
+          <div className="bg-sunken px-3 py-2">
+            <Skeleton className="h-3 w-10" />
           </div>
+          {Array.from({ length: count }, (_, i) => (
+            <div key={i} className="flex items-center gap-4 px-3 py-3">
+              <Skeleton className="h-4 w-10" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3.5 w-40" />
+                <Skeleton className="h-3 w-64 max-w-full" />
+              </div>
+              <Skeleton className="h-8 w-28" />
+            </div>
+          ))}
         </div>
       ))}
     </div>

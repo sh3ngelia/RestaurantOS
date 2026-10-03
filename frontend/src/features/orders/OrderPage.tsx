@@ -7,12 +7,15 @@ import { ApiError, getErrorMessage } from '@/api/errors'
 import type { MenuItem } from '@/api/menu'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
+import { PageHeader } from '@/components/PageHeader'
+import { StatusChip } from '@/components/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useNow } from '@/hooks/useNow'
 import { formatElapsed, formatTime } from '@/lib/dates'
+import { segmentClass, segmentGroupClass } from '@/lib/controls'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { AddItemSheet } from './components/AddItemSheet'
@@ -45,11 +48,11 @@ export function OrderPage() {
 
   if (query.isPending) {
     return (
-      <div className="space-y-6" role="status" aria-label="Loading the order">
-        <Skeleton className="h-14 w-64" />
-        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_22rem]">
-          <Skeleton className="h-96 rounded-2xl" />
-          <Skeleton className="h-96 rounded-2xl" />
+      <div className="space-y-5" role="status" aria-label="Loading the order">
+        <Skeleton className="h-10 w-56" />
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_22rem]">
+          <Skeleton className="h-96 rounded-md" />
+          <Skeleton className="h-96 rounded-md" />
         </div>
       </div>
     )
@@ -60,7 +63,7 @@ export function OrderPage() {
     return (
       <EmptyState
         icon={CircleAlert}
-        title={missing ? 'Order not found' : 'The order didn’t load'}
+        title={missing ? 'Order not found' : 'Couldn’t load the order'}
         description={missing ? 'It may have been cancelled or closed elsewhere.' : getErrorMessage(query.error)}
         action={
           <>
@@ -114,7 +117,7 @@ export function OrderPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Button asChild variant="ghost" size="sm" className="-ml-3 text-muted-foreground">
         <Link to="/m/orders">
           <ArrowLeft aria-hidden="true" />
@@ -122,55 +125,54 @@ export function OrderPage() {
         </Link>
       </Button>
 
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="font-mono text-[11px] tracking-[0.16em] text-primary uppercase tabular-nums">
+      <PageHeader
+        title={order.tableNumber !== null ? `Table ${order.tableNumber}` : 'Order'}
+        description={
+          <>
             Order #{order.orderNumber} · opened {formatTime(new Date(order.createdAt))}
             {open && ` · ${formatElapsed(order.createdAt, now)}`}
-          </p>
-          <h1 className="mt-2 text-4xl leading-[1.05] font-light sm:text-5xl">
-            {order.tableNumber !== null ? `Table ${order.tableNumber}` : 'Order'}
-          </h1>
-        </div>
-
-        {open && (
-          <div className="flex flex-wrap gap-2">
-            {canCancelOrder(order) && (
-              <Button variant="outline" size="lg" onClick={() => setCancelOpen(true)}>
-                <X aria-hidden="true" />
-                Cancel order
-              </Button>
-            )}
-            {blocker ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  {/* A disabled button can't show a tooltip, so the wrapper takes focus and hover. */}
-                  <span tabIndex={0} className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <Button size="lg" disabled aria-describedby="close-blocker" className="pointer-events-none">
-                      <Lock aria-hidden="true" />
-                      Close order
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-60">{blocker}</TooltipContent>
-              </Tooltip>
-            ) : (
-              <Button size="lg" onClick={closeOrder} disabled={orderAction.isPending}>
-                <CircleCheck aria-hidden="true" />
-                Close order
-              </Button>
-            )}
-            {blocker && (
-              <span id="close-blocker" className="sr-only">
-                {blocker}
-              </span>
-            )}
-          </div>
-        )}
-      </header>
+          </>
+        }
+        actions={
+          open && (
+            <>
+              {canCancelOrder(order) && (
+                <Button variant="outline" onClick={() => setCancelOpen(true)}>
+                  <X aria-hidden="true" />
+                  Cancel order
+                </Button>
+              )}
+              {blocker ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {/* A disabled button can't show a tooltip, so the wrapper takes focus and hover. */}
+                    <span tabIndex={0} className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <Button disabled aria-describedby="close-blocker" className="pointer-events-none">
+                        <Lock aria-hidden="true" />
+                        Close order
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-60">{blocker}</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button onClick={closeOrder} disabled={orderAction.isPending}>
+                  <CircleCheck aria-hidden="true" />
+                  Close order
+                </Button>
+              )}
+              {blocker && (
+                <span id="close-blocker" className="sr-only">
+                  {blocker}
+                </span>
+              )}
+            </>
+          )
+        }
+      />
 
       {!open && (
-        <p className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <p className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2.5 text-sm text-muted-foreground">
           <Lock className="size-4" aria-hidden="true" />
           This order is {order.status === 'Closed' ? 'closed' : 'cancelled'}. The ticket is read-only.
         </p>
@@ -178,31 +180,25 @@ export function OrderPage() {
 
       {/* Phones: one pane at a time. */}
       {open && (
-        <div role="group" aria-label="Show" className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-card p-1 md:hidden">
+        <div role="group" aria-label="Show" className={cn(segmentGroupClass, 'grid-cols-2 md:hidden')}>
           {(['menu', 'ticket'] as const).map((value) => (
             <button
               key={value}
               type="button"
               aria-pressed={pane === value}
               onClick={() => setPane(value)}
-              className={cn(
-                'h-11 rounded-lg text-sm font-medium text-muted-foreground outline-none transition-colors',
-                'focus-visible:ring-2 focus-visible:ring-ring',
-                pane === value && 'bg-accent text-foreground',
-              )}
+              className={segmentClass(pane === value, 'inline-flex items-center justify-center gap-1.5')}
             >
               {value === 'menu' ? 'Menu' : `Ticket · ${formatPrice(order.totalAmount)}`}
               {value === 'ticket' && (drafts > 0 || ready > 0) && (
-                <span className={cn('ml-1.5 rounded-full px-1.5 text-xs', ready ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
-                  {ready ? `${ready} ready` : `${drafts} new`}
-                </span>
+                <StatusChip tone={ready ? 'attention' : 'neutral'}>{ready ? `${ready} ready` : `${drafts} new`}</StatusChip>
               )}
             </button>
           ))}
         </div>
       )}
 
-      <div className={cn('gap-6', open ? 'md:grid md:grid-cols-[minmax(0,1fr)_22rem] lg:grid-cols-[minmax(0,1fr)_26rem]' : 'mx-auto max-w-xl')}>
+      <div className={cn('gap-4', open ? 'md:grid md:grid-cols-[minmax(0,1fr)_22rem] lg:grid-cols-[minmax(0,1fr)_26rem]' : 'mx-auto max-w-xl')}>
         {open && (
           <div className={cn(pane !== 'menu' && 'hidden md:block')}>
             <MenuBrowser onPick={(item) => setPicked((s) => ({ open: true, item, pickId: s.pickId + 1 }))} />
@@ -212,7 +208,7 @@ export function OrderPage() {
           order={order}
           permissions={permissions}
           className={cn(
-            'md:sticky md:top-20 md:max-h-[calc(100dvh-6rem)]',
+            'md:sticky md:top-[4.5rem] md:max-h-[calc(100dvh-5.5rem)]',
             open && pane !== 'ticket' && 'hidden md:flex',
           )}
         />

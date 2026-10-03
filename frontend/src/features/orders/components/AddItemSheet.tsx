@@ -14,6 +14,7 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { Textarea } from '@/components/ui/textarea'
 import { STATION_ICONS } from '@/features/menu/stations'
 import { useFormState } from '@/hooks/useFormState'
+import { segmentClass, segmentGroupClass } from '@/lib/controls'
 import { formatPrice } from '@/lib/format'
 import { fieldDescribedBy, focusById } from '@/lib/forms'
 import { cn } from '@/lib/utils'
@@ -95,7 +96,7 @@ function AddItemForm({ order, item, onDone }: { order: Order; item: MenuItem; on
       },
       {
         onSuccess: () => {
-          toast.success(`${quantity} × ${item.name} added`, { description: 'Send the ticket when the table is ready.' })
+          toast.success(`${quantity} × ${item.name} added`)
           onDone()
         },
         onError: (error) => {
@@ -119,14 +120,14 @@ function AddItemForm({ order, item, onDone }: { order: Order; item: MenuItem; on
         </SheetDescription>
       </SheetHeader>
 
-      <div className="flex-1 space-y-6 overflow-y-auto p-6">
+      <div className="flex-1 space-y-4 overflow-y-auto p-5">
         <div tabIndex={-1} id={formErrorId} className="outline-none">
           <FormAlert message={form.formError} />
         </div>
 
         {item.allergens.length > 0 && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3.5 py-3">
-            <p className="mb-2 text-xs font-medium text-destructive">Allergens</p>
+          <div className="rounded-md border border-status-danger/40 bg-status-danger/5 px-3 py-2.5">
+            <p className="mb-1.5 text-xs font-medium text-status-danger">Allergens</p>
             <AllergenBadges allergens={item.allergens} />
           </div>
         )}
@@ -153,18 +154,10 @@ function AddItemForm({ order, item, onDone }: { order: Order; item: MenuItem; on
             onValueChange={(value) => form.setValue('course', value)}
             aria-labelledby={`${id('course')}-label`}
             aria-describedby={fieldDescribedBy(id('course'), { error: form.errorFor('course'), hint: isBar })}
-            className="grid grid-cols-3 gap-1 rounded-xl border border-input bg-sunken p-1"
+            className={cn(segmentGroupClass, 'grid-cols-3')}
           >
             {COURSES.map((course) => (
-              <RadioGroup.Item
-                key={course}
-                value={course}
-                className={cn(
-                  'h-11 rounded-lg text-sm font-medium text-muted-foreground outline-none',
-                  'transition-[background-color,color,box-shadow] duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
-                  'data-[state=checked]:bg-card data-[state=checked]:text-foreground data-[state=checked]:shadow-soft',
-                )}
-              >
+              <RadioGroup.Item key={course} value={course} className={segmentClass(false, 'h-9')}>
                 {COURSE_LABELS[course].one}
               </RadioGroup.Item>
             ))}
@@ -180,7 +173,7 @@ function AddItemForm({ order, item, onDone }: { order: Order; item: MenuItem; on
             value={values.seatNumber}
             onChange={(e) => form.setValue('seatNumber', e.target.value)}
             onBlur={() => form.touch('seatNumber')}
-            className="h-11 tabular-nums"
+            className="tabular-nums"
             aria-invalid={!!form.errorFor('seatNumber')}
             aria-describedby={fieldDescribedBy(id('seatNumber'), { error: form.errorFor('seatNumber') })}
           />

@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 
+import { filterChipClass, filterChipCountClass } from '@/lib/controls'
 import { cn } from '@/lib/utils'
 
 export const ALL_CATEGORIES = 'all'
@@ -16,17 +17,17 @@ interface CategoryNavProps {
   className?: string
 }
 
-/** Horizontal pill tabs on small screens, a vertical list on desktop. The choice lives in ?category=. */
+/** Horizontal chips on small screens, a vertical list on desktop. The choice lives in ?category=. */
 export function CategoryNav({ entries, activeId, className }: CategoryNavProps) {
   return (
     <nav aria-label="Menu categories" className={className}>
-      <p className="mb-3 hidden px-3 font-mono text-[10.5px] tracking-[0.16em] text-muted-foreground/80 uppercase lg:block">
+      <p className="mb-1 hidden px-2.5 text-xs font-medium text-muted-foreground lg:block">
         Categories
       </p>
       <ul
         className={cn(
           'flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-          'mask-[linear-gradient(to_right,black_85%,transparent)] lg:flex-col lg:gap-0.5 lg:overflow-visible lg:mask-none',
+          'lg:flex-col lg:gap-0.5 lg:overflow-visible',
         )}
       >
         {entries.map((entry) => {
@@ -39,21 +40,14 @@ export function CategoryNav({ entries, activeId, className }: CategoryNavProps) 
                 preventScrollReset
                 aria-current={active ? 'true' : undefined}
                 className={cn(
-                  'flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm whitespace-nowrap outline-none',
-                  'transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring',
-                  'lg:w-full lg:justify-between lg:rounded-lg lg:border-transparent lg:px-3',
-                  active
-                    ? 'border-primary/40 bg-primary-soft font-medium text-primary lg:bg-accent lg:text-foreground'
-                    : 'border-border text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+                  filterChipClass(active),
+                  // On desktop it reads as a side list: no outline, the active entry tinted like the nav.
+                  'lg:w-full lg:justify-between lg:rounded-md lg:border-transparent lg:px-2.5',
+                  active && 'lg:bg-accent lg:text-foreground',
                 )}
               >
                 <span className="truncate">{entry.label}</span>
-                <span
-                  className={cn(
-                    'font-mono text-[11px] tabular-nums',
-                    active ? 'text-primary' : 'text-muted-foreground/80',
-                  )}
-                >
+                <span className={cn(filterChipCountClass(active), active && 'lg:text-muted-foreground')}>
                   {entry.count}
                   <span className="sr-only"> items</span>
                 </span>

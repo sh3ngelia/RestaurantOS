@@ -13,7 +13,3 @@ export function getInitials(name: string) {
   const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : ''
   return (first + last).toUpperCase()
 }
-
-export function getFirstName(name: string) {
-  return name.trim().split(/\s+/)[0] || name
-}

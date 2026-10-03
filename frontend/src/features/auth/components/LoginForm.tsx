@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowRight, CircleAlert, Eye, EyeOff, LoaderCircle } from 'lucide-react'
+import { CircleAlert, Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 
@@ -10,7 +10,7 @@ import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getFirstName } from '@/lib/utils'
+import { FAST, collapseMotion } from '@/lib/motion'
 import type { LoginLocationState } from '../ProtectedRoute'
 import { useAuth } from '../useAuth'
 
@@ -78,7 +78,7 @@ export function LoginForm() {
         onSuccess: (response) => {
           try {
             const session = signIn(response)
-            toast.success(`Welcome back, ${getFirstName(session.fullName)}`)
+            toast.success(`Signed in as ${session.fullName}`)
             navigate(safeRedirect((location.state as LoginLocationState | null)?.from), { replace: true })
           } catch (error) {
             setFormError(getErrorMessage(error))
@@ -99,21 +99,14 @@ export function LoginForm() {
   const passwordError = visibleError('password')
 
   return (
-    <form noValidate onSubmit={handleSubmit} aria-describedby={serverError ? ids.error : undefined} className="space-y-5">
+    <form noValidate onSubmit={handleSubmit} aria-describedby={serverError ? ids.error : undefined} className="space-y-4">
       <AnimatePresence initial={false}>
         {serverError && (
-          <motion.div
-            key="server-error"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="overflow-hidden"
-          >
+          <motion.div key="server-error" {...collapseMotion} className="overflow-hidden">
             <div
               id={ids.error}
               role="alert"
-              className="flex gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-3 text-sm text-foreground"
+              className="flex gap-2.5 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm text-foreground"
             >
               <CircleAlert className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden="true" />
               <p>{serverError}</p>
@@ -122,7 +115,7 @@ export function LoginForm() {
         )}
       </AnimatePresence>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label htmlFor={ids.email}>Work email</Label>
         <Input
           ref={emailRef}
@@ -145,7 +138,7 @@ export function LoginForm() {
         <FieldError id={`${ids.email}-error`} message={emailError} />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label htmlFor={ids.password}>Password</Label>
         <div className="relative">
           <Input
@@ -169,7 +162,7 @@ export function LoginForm() {
               [passwordError && `${ids.password}-error`, capsLock && `${ids.password}-caps`].filter(Boolean).join(' ') ||
               undefined
             }
-            className="pr-12"
+            className="pr-11"
           />
           <button
             type="button"
@@ -178,31 +171,22 @@ export function LoginForm() {
             aria-pressed={showPassword}
             title={showPassword ? 'Hide password' : 'Show password'}
             aria-controls={ids.password}
-            className="absolute inset-y-1.5 right-1.5 grid w-9 place-items-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="absolute inset-y-1 right-1 grid w-8 place-items-center rounded-sm text-muted-foreground transition-colors duration-150 outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             {showPassword ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
           </button>
         </div>
         <FieldError id={`${ids.password}-error`} message={passwordError} />
         {capsLock && (
-          <p id={`${ids.password}-caps`} className="text-[13px] text-primary">
+          <p id={`${ids.password}-caps`} className="text-[13px] text-muted-foreground">
             Caps Lock is on.
           </p>
         )}
       </div>
 
-      <Button type="submit" size="lg" className="group w-full" disabled={login.isPending} aria-busy={login.isPending}>
-        {login.isPending ? (
-          <>
-            <LoaderCircle className="animate-spin" aria-hidden="true" />
-            Signing in…
-          </>
-        ) : (
-          <>
-            Sign in
-            <ArrowRight className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true" />
-          </>
-        )}
+      <Button type="submit" size="lg" className="w-full" disabled={login.isPending} aria-busy={login.isPending}>
+        {login.isPending && <LoaderCircle className="animate-spin" aria-hidden="true" />}
+        {login.isPending ? 'Signing in…' : 'Sign in'}
       </Button>
     </form>
   )
@@ -215,10 +199,10 @@ function FieldError({ id, message }: { id: string; message: string | undefined }
         <motion.p
           key={message}
           id={id}
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
+          transition={FAST}
           className="flex items-center gap-1.5 text-[13px] text-destructive"
         >
           {message}

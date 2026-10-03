@@ -8,7 +8,7 @@ import { summarizeOrder } from '@/features/orders/rules'
 import { cn } from '@/lib/utils'
 
 const actionClass = cn(
-  'flex min-h-12 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left outline-none',
+  'flex min-h-11 w-full items-center gap-3 rounded-sm px-2 py-1.5 text-left outline-none',
   'transition-colors duration-150 hover:bg-accent focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring',
 )
 
@@ -21,14 +21,14 @@ export function TableOrderLink({ table, order, onNavigate }: { table: DiningTabl
     const { ready, items } = summarizeOrder(order)
     return (
       <Link to={`/m/orders/${order.id}`} onClick={onNavigate} className={actionClass}>
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-primary/30 bg-primary/15 text-primary">
+        <span className="grid size-8 shrink-0 place-items-center rounded-sm border border-border-strong">
           <ClipboardList className="size-4" aria-hidden="true" />
         </span>
         <span className="min-w-0">
           <span className="block text-sm font-medium">Open order</span>
           <span className="block text-xs text-muted-foreground">
             #{order.orderNumber} · {items} {items === 1 ? 'item' : 'items'}
-            {ready > 0 && <span className="font-medium text-primary"> · {ready} ready</span>}
+            {ready > 0 && <span className="font-medium text-status-attention"> · {ready} ready</span>}
           </span>
         </span>
       </Link>
@@ -48,12 +48,12 @@ export function TableOrderLink({ table, order, onNavigate }: { table: DiningTabl
 
   return (
     <button type="button" onClick={startOrder} disabled={start.isPending} aria-busy={start.isPending} className={actionClass}>
-      <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-primary/30 bg-primary/15 text-primary">
+      <span className="grid size-8 shrink-0 place-items-center rounded-sm border border-border-strong">
         {start.isPending ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}
       </span>
       <span className="min-w-0">
         <span className="block text-sm font-medium">Start order</span>
-        <span className="block text-xs text-muted-foreground">Open a ticket for this table.</span>
+        <span className="block text-xs text-muted-foreground">New ticket for this table</span>
       </span>
     </button>
   )

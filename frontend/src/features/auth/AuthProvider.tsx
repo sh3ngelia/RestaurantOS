@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (reason === 'expired') {
         toast.error('Your session has ended', { description })
       } else {
-        toast('Signed out', { description: 'See you next service.' })
+        toast('Signed out')
         navigate('/login', { replace: true })
       }
     },

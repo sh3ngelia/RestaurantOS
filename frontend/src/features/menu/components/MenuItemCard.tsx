@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import type { MenuItem } from '@/api/menu'
 import { AllergenBadges } from '@/components/AllergenBadges'
+import { StatusChip } from '@/components/StatusChip'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -31,16 +32,16 @@ export function MenuItemCard({ item, permissions, onEdit, onDelete }: MenuItemCa
     <article
       aria-labelledby={nameId}
       className={cn(
-        'surface-edge relative flex h-full flex-col rounded-xl border bg-card p-4 transition-[background-color,border-color] duration-200 sm:p-5',
-        off ? 'border-dashed border-border-strong bg-card/45 shadow-none' : 'border-border',
+        'relative flex h-full flex-col rounded-md border p-3 transition-[background-color,border-color] duration-150',
+        off ? 'border-dashed border-border-strong bg-transparent' : 'border-border bg-card',
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <h3
           id={nameId}
           className={cn(
-            'min-w-0 pt-0.5 text-lg leading-snug font-normal text-balance break-words',
-            off && 'text-muted-foreground line-through decoration-primary/70 decoration-2',
+            'min-w-0 pt-1 text-sm leading-snug font-medium break-words',
+            off && 'text-muted-foreground line-through',
           )}
         >
           {item.name}
@@ -50,12 +51,12 @@ export function MenuItemCard({ item, permissions, onEdit, onDelete }: MenuItemCa
       </div>
 
       {item.description && (
-        <p className={cn('mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground', off && 'opacity-70')}>
+        <p className={cn('mt-1 line-clamp-2 text-[13px] text-muted-foreground', off && 'opacity-70')}>
           {item.description}
         </p>
       )}
 
-      <div className={cn('mt-4 flex flex-wrap items-center gap-2', !hasFooter && 'mt-auto pt-4')}>
+      <div className={cn('mt-2.5 flex flex-wrap items-center gap-1.5', !hasFooter && 'mt-auto pt-2.5')}>
         <Badge variant="outline" size="sm">
           <StationIcon aria-hidden="true" />
           {item.preparationStation}
@@ -65,14 +66,18 @@ export function MenuItemCard({ item, permissions, onEdit, onDelete }: MenuItemCa
           {item.preparationTimeInMinutes} min
           <span className="sr-only"> preparation</span>
         </Badge>
-        {off && <EightySixStamp />}
+        {off && (
+          <StatusChip tone="muted" dashed>
+            86’d
+          </StatusChip>
+        )}
       </div>
 
-      <AllergenBadges allergens={item.allergens} className="mt-2.5" />
+      <AllergenBadges allergens={item.allergens} className="mt-2" />
 
       {hasFooter && (
-        <div className="mt-auto pt-4">
-          <div className="flex min-h-8 items-center justify-between gap-2 border-t border-border pt-3">
+        <div className="mt-auto pt-3">
+          <div className="flex min-h-8 items-center justify-between gap-2 border-t border-border pt-2">
             {permissions.canToggleAvailability ? <AvailabilityToggle item={item} /> : <span />}
             {permissions.canManage && (
               <div className="flex items-center gap-0.5">
@@ -91,18 +96,6 @@ export function MenuItemCard({ item, permissions, onEdit, onDelete }: MenuItemCa
   )
 }
 
-/** "86" is kitchen shorthand for "we're out of it". */
-function EightySixStamp() {
-  return (
-    <span
-      title="Unavailable right now"
-      className="-rotate-3 rounded-[3px] border-2 border-primary/80 px-1.5 font-mono text-[11px] leading-4 font-semibold tracking-wider text-primary"
-    >
-      86’d
-    </span>
-  )
-}
-
 function AvailabilityToggle({ item }: { item: MenuItem }) {
   const setAvailability = useSetAvailability()
 
@@ -111,8 +104,8 @@ function AvailabilityToggle({ item }: { item: MenuItem }) {
       { item, isAvailable },
       {
         onSuccess: (updated) =>
-          toast(updated.isAvailable ? `${updated.name} is back on` : `${updated.name} is 86’d`, {
-            description: updated.isAvailable ? 'Every station can sell it again.' : 'Marked unavailable for every station.',
+          toast(updated.isAvailable ? `${updated.name} is available` : `${updated.name} is 86’d`, {
+            description: updated.isAvailable ? 'Available at every station.' : 'Unavailable at every station.',
             action: {
               label: 'Undo',
               onClick: () =>
@@ -128,7 +121,7 @@ function AvailabilityToggle({ item }: { item: MenuItem }) {
   }
 
   return (
-    <label className="flex cursor-pointer items-center gap-2.5 text-[13px] text-muted-foreground select-none">
+    <label className="touch-target flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground select-none">
       <Switch checked={item.isAvailable} onCheckedChange={change} aria-label={`${item.name} available`} />
       <span aria-hidden="true" className={cn(item.isAvailable && 'text-foreground')}>
         Available

@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { motion } from 'motion/react'
-import { ArrowUpRight } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 
-import { Card } from '@/components/ui/card'
+import { StatusChip } from '@/components/StatusChip'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Role } from '@/config/roles'
 import { OccupancyBar } from '@/features/tables/components/OccupancyBar'
@@ -14,6 +14,7 @@ import { useDayReservations } from '@/features/reservations/hooks'
 import { canUseReservations } from '@/features/reservations/permissions'
 import { summarizeDay } from '@/features/reservations/summary'
 import { todayKey } from '@/lib/dates'
+import { FAST } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { useOpenOrders } from '@/features/orders/hooks'
 import { getOrderPermissions } from '@/features/orders/permissions'
@@ -48,7 +49,6 @@ const LIVE_ACCESS: Record<LiveSource, (role: Role) => boolean> = {
 }
 
 const MAX_STATS = 4
-const BAR_HEIGHTS = [40, 65, 50, 80, 60, 90, 72]
 
 export function StatsRow({ role }: { role: Role }) {
   const stats = STATS.filter((s) => s.roles.includes(role)).slice(0, MAX_STATS)
@@ -56,48 +56,84 @@ export function StatsRow({ role }: { role: Role }) {
   return (
     <section aria-labelledby="stats-heading">
       <h2 id="stats-heading" className="sr-only">
-        Today at a glance
+        Today
       </h2>
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        {stats.map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: 0.05 + index * 0.04, ease: [0.2, 0.8, 0.2, 1] }}
-          >
-            {stat.live === 'tablesSeated' && LIVE_ACCESS.tablesSeated(role) ? (
-              <TablesSeatedStat label={stat.label} />
-            ) : stat.live === 'coversTonight' && LIVE_ACCESS.coversTonight(role) ? (
-              <CoversTonightStat label={stat.label} />
-            ) : stat.live === 'openTickets' && LIVE_ACCESS.openTickets(role) ? (
-              <OpenTicketsStat label={stat.label} />
-            ) : (
-              <PlaceholderStat stat={stat} />
-            )}
-          </motion.div>
-        ))}
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+        {stats.map((stat) =>
+          stat.live === 'tablesSeated' && LIVE_ACCESS.tablesSeated(role) ? (
+            <TablesSeatedStat key={stat.label} label={stat.label} />
+          ) : stat.live === 'coversTonight' && LIVE_ACCESS.coversTonight(role) ? (
+            <CoversTonightStat key={stat.label} label={stat.label} />
+          ) : stat.live === 'openTickets' && LIVE_ACCESS.openTickets(role) ? (
+            <OpenTicketsStat key={stat.label} label={stat.label} />
+          ) : (
+            <PlaceholderStat key={stat.label} stat={stat} />
+          ),
+        )}
       </div>
     </section>
   )
 }
 
+const statFrame = 'flex h-full min-h-24 flex-col rounded-md border bg-card p-3'
+const statValue = 'mt-1 text-2xl leading-none font-semibold tabular-nums'
+const statCaption = 'mt-auto truncate pt-2 text-xs text-muted-foreground'
+
+/** A stat whose module hasn't shipped: a dash, not a fake chart. */
 function PlaceholderStat({ stat }: { stat: StatDefinition }) {
   return (
-    <Card className="relative h-full overflow-hidden p-4 sm:p-5" aria-busy="true">
+    <div className={cn(statFrame, 'border-border')}>
       <p className="text-[13px] text-muted-foreground">{stat.label}</p>
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <Skeleton className="h-7 w-16 sm:w-20" />
-        <div className="hidden h-7 items-end gap-[3px] sm:flex" aria-hidden="true">
-          {BAR_HEIGHTS.map((h, i) => (
-            <Skeleton key={i} className="w-1.5 rounded-sm" style={{ height: `${h}%` }} />
-          ))}
-        </div>
-      </div>
-      <p className="mt-3 truncate font-mono text-[10.5px] tracking-wide text-muted-foreground/70 uppercase">
-        Awaiting {stat.source}
+      <p className={cn(statValue, 'text-muted-foreground')}>
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">No data yet</span>
       </p>
-    </Card>
+    </div>
+  )
+}
+
+/** A live stat that links to its module. */
+function StatLink({
+  to,
+  label,
+  ariaLabel,
+  busy,
+  highlight = false,
+  children,
+}: {
+  to: string
+  label: string
+  ariaLabel: string
+  busy: boolean
+  highlight?: boolean
+  children: ReactNode
+}) {
+  return (
+    <Link
+      to={to}
+      aria-busy={busy}
+      aria-label={ariaLabel}
+      className={cn(
+        statFrame,
+        'group outline-none transition-colors duration-150 hover:border-border-strong focus-visible:ring-2 focus-visible:ring-ring',
+        highlight ? 'border-status-attention' : 'border-border',
+      )}
+    >
+      <span className="flex items-center justify-between gap-2">
+        <span className="text-[13px] text-muted-foreground">{label}</span>
+        <ChevronRight className="size-3.5 text-muted-foreground group-hover:text-foreground" aria-hidden="true" />
+      </span>
+      {children}
+    </Link>
+  )
+}
+
+function StatLoading() {
+  return (
+    <>
+      <Skeleton className="mt-1 h-6 w-14" />
+      <Skeleton className="mt-auto h-3 w-24" />
+    </>
   )
 }
 
@@ -107,49 +143,33 @@ function TablesSeatedStat({ label }: { label: string }) {
 
   let body: ReactNode
   if (tables.isPending) {
-    body = (
-      <>
-        <Skeleton className="mt-3 h-7 w-16 sm:w-20" />
-        <Skeleton className="mt-4 h-1.5 w-full rounded-full" />
-      </>
-    )
+    body = <StatLoading />
   } else if (tables.isError) {
-    body = <p className="mt-3 text-sm text-muted-foreground">Couldn’t load the floor.</p>
+    body = <p className="mt-1 text-sm text-muted-foreground">Couldn’t load tables.</p>
   } else {
     body = (
       <>
-        <p className="mt-2 font-serif text-3xl leading-none font-light tabular-nums">
+        <p className={statValue}>
           {counts.byStatus.Occupied}
-          <span className="text-base text-muted-foreground"> / {counts.total}</span>
+          <span className="text-sm font-normal text-muted-foreground"> / {counts.total}</span>
         </p>
-        <OccupancyBar counts={counts} className="mt-4" />
-        <p className="mt-3 truncate font-mono text-[10.5px] tracking-wide text-muted-foreground uppercase">
-          {counts.coversSeated} covers seated
-        </p>
+        <OccupancyBar counts={counts} className="mt-2" />
+        <p className={statCaption}>{counts.coversSeated} covers seated</p>
       </>
     )
   }
 
   return (
-    <Link
+    <StatLink
       to="/m/tables"
-      aria-busy={tables.isPending}
-      aria-label={
-        tables.isSuccess ? `${label}: ${counts.byStatus.Occupied} of ${counts.total}. Open the floor.` : `${label}. Open the floor.`
+      label={label}
+      busy={tables.isPending}
+      ariaLabel={
+        tables.isSuccess ? `${label}: ${counts.byStatus.Occupied} of ${counts.total}. Open tables.` : `${label}. Open tables.`
       }
-      className="group block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <Card className="relative h-full overflow-hidden p-4 transition-[border-color] duration-200 group-hover:border-primary/30 sm:p-5">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[13px] text-muted-foreground">{label}</p>
-          <ArrowUpRight
-            className="size-3.5 text-muted-foreground transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary"
-            aria-hidden="true"
-          />
-        </div>
-        {body}
-      </Card>
-    </Link>
+      {body}
+    </StatLink>
   )
 }
 
@@ -160,56 +180,41 @@ function CoversTonightStat({ label }: { label: string }) {
 
   let body: ReactNode
   if (reservations.isPending) {
-    body = (
-      <>
-        <Skeleton className="mt-3 h-7 w-16 sm:w-20" />
-        <Skeleton className="mt-4 h-1.5 w-full rounded-full" />
-      </>
-    )
+    body = <StatLoading />
   } else if (reservations.isError) {
-    body = <p className="mt-3 text-sm text-muted-foreground">Couldn’t load the book.</p>
+    body = <p className="mt-1 text-sm text-muted-foreground">Couldn’t load reservations.</p>
   } else {
     body = (
       <>
-        <p className="mt-2 font-serif text-3xl leading-none font-light tabular-nums">{summary.coversExpected}</p>
-        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-border-strong" aria-hidden="true">
+        <p className={statValue}>{summary.coversExpected}</p>
+        <div className="mt-2 h-1 w-full overflow-hidden rounded-sm bg-border-strong" aria-hidden="true">
           <motion.div
-            className="h-full rounded-full bg-primary"
+            className="h-full bg-status-active"
             initial={false}
             animate={{ width: `${arrivedShare}%` }}
-            transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+            transition={FAST}
           />
         </div>
-        <p className="mt-3 truncate font-mono text-[10.5px] tracking-wide text-muted-foreground uppercase">
-          {summary.active} {summary.active === 1 ? 'booking' : 'bookings'} · {summary.coversArrived}{' '}
-          {summary.coversArrived === 1 ? 'guest' : 'guests'} arrived
+        <p className={statCaption}>
+          {summary.active} {summary.active === 1 ? 'booking' : 'bookings'} · {summary.coversArrived} arrived
         </p>
       </>
     )
   }
 
   return (
-    <Link
+    <StatLink
       to="/m/reservations"
-      aria-busy={reservations.isPending}
-      aria-label={
+      label={label}
+      busy={reservations.isPending}
+      ariaLabel={
         reservations.isSuccess
           ? `${label}: ${summary.coversExpected} covers expected, ${summary.coversArrived} guests arrived. Open reservations.`
           : `${label}. Open reservations.`
       }
-      className="group block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <Card className="relative h-full overflow-hidden p-4 transition-[border-color] duration-200 group-hover:border-primary/30 sm:p-5">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[13px] text-muted-foreground">{label}</p>
-          <ArrowUpRight
-            className="size-3.5 text-muted-foreground transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary"
-            aria-hidden="true"
-          />
-        </div>
-        {body}
-      </Card>
-    </Link>
+      {body}
+    </StatLink>
   )
 }
 
@@ -224,27 +229,21 @@ function OpenTicketsStat({ label }: { label: string }) {
 
   let body: ReactNode
   if (orders.isPending) {
-    body = (
-      <>
-        <Skeleton className="mt-3 h-7 w-16 sm:w-20" />
-        <Skeleton className="mt-4 h-5 w-24 rounded-full" />
-      </>
-    )
+    body = <StatLoading />
   } else if (orders.isError) {
-    body = <p className="mt-3 text-sm text-muted-foreground">Couldn’t load orders.</p>
+    body = <p className="mt-1 text-sm text-muted-foreground">Couldn’t load orders.</p>
   } else {
     body = (
       <>
-        <p className="mt-2 font-serif text-3xl leading-none font-light tabular-nums">{list.length}</p>
-        <p className="mt-3.5 min-h-5">
+        <p className={statValue}>{list.length}</p>
+        <p className="mt-auto pt-2">
           {readyTables > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
-              <span className="size-1.5 rounded-full bg-primary-foreground" aria-hidden="true" />
+            <StatusChip tone="attention">
               {readyTables} {readyTables === 1 ? 'table' : 'tables'} ready
-            </span>
+            </StatusChip>
           ) : (
-            <span className="font-mono text-[10.5px] tracking-wide text-muted-foreground uppercase">
-              {inKitchen} {inKitchen === 1 ? 'item' : 'items'} in the works
+            <span className="text-xs text-muted-foreground">
+              {inKitchen} {inKitchen === 1 ? 'item' : 'items'} in progress
             </span>
           )}
         </p>
@@ -253,31 +252,16 @@ function OpenTicketsStat({ label }: { label: string }) {
   }
 
   return (
-    <Link
+    <StatLink
       to="/m/orders"
-      aria-busy={orders.isPending}
-      aria-label={
-        orders.isSuccess
-          ? `${label}: ${list.length} open, ${readyTables} with food ready. Open orders.`
-          : `${label}. Open orders.`
+      label={label}
+      busy={orders.isPending}
+      highlight={readyTables > 0}
+      ariaLabel={
+        orders.isSuccess ? `${label}: ${list.length} open, ${readyTables} with food ready. Open orders.` : `${label}. Open orders.`
       }
-      className="group block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <Card
-        className={cn(
-          'relative h-full overflow-hidden p-4 transition-[border-color] duration-200 group-hover:border-primary/30 sm:p-5',
-          readyTables > 0 && 'border-primary/50',
-        )}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[13px] text-muted-foreground">{label}</p>
-          <ArrowUpRight
-            className="size-3.5 text-muted-foreground transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary"
-            aria-hidden="true"
-          />
-        </div>
-        {body}
-      </Card>
-    </Link>
+      {body}
+    </StatLink>
   )
 }

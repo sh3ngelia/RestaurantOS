@@ -10,6 +10,8 @@ import { QuantityStepper } from '@/components/QuantityStepper'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatPrice } from '@/lib/format'
+import { collapseMotion } from '@/lib/motion'
+import { STATUS_TONE_CLASSES } from '@/lib/status-tones'
 import { cn } from '@/lib/utils'
 import { notifyOrderError, useOrderAction, type OrderAction } from '../hooks'
 import type { OrderPermissions } from '../permissions'
@@ -26,7 +28,6 @@ import {
 } from '../rules'
 import { ItemStatusChip } from './ItemStatusChip'
 
-const EASE = [0.2, 0.8, 0.2, 1] as const
 const ITEM_ACTIONS: readonly ItemAction[] = ['serve', 'start', 'ready', 'cancel']
 
 /** In-flight key for actions that wait for the server; null for optimistic ones. */
@@ -97,10 +98,10 @@ export function Ticket({ order, permissions, className }: TicketProps) {
   return (
     <section
       aria-labelledby="ticket-heading"
-      className={cn('surface-edge flex min-h-0 flex-col rounded-2xl border border-border bg-card', className)}
+      className={cn('flex min-h-0 flex-col rounded-md border border-border bg-card', className)}
     >
-      <div className="flex items-baseline justify-between gap-3 border-b border-border px-5 py-4">
-        <h2 id="ticket-heading" className="text-xl font-normal">
+      <div className="flex items-baseline justify-between gap-3 border-b border-border px-4 py-2.5">
+        <h2 id="ticket-heading" className="text-sm font-semibold">
           Ticket
         </h2>
         <p className="text-sm text-muted-foreground tabular-nums">
@@ -108,33 +109,25 @@ export function Ticket({ order, permissions, className }: TicketProps) {
         </p>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4">
         {order.items.length === 0 ? (
-          <p className="py-12 text-center text-sm text-balance text-muted-foreground">
+          <p className="py-10 text-center text-sm text-balance text-muted-foreground">
             {editable ? 'Tap a dish on the menu to start the ticket.' : 'Nothing was ordered.'}
           </p>
         ) : (
           sections.map(({ key, label, course, lines }) => {
             return (
-              <div key={key} className="py-4 [&+&]:border-t [&+&]:border-border">
-                <h3 className="mb-1 flex items-center justify-between font-mono text-[10.5px] tracking-[0.16em] text-muted-foreground uppercase">
+              <div key={key} className="py-3 [&+&]:border-t [&+&]:border-border">
+                <h3 className="mb-1 flex items-center justify-between text-xs font-medium text-muted-foreground">
                   {label}
                   {course !== null && order.currentCourse === course && editable && (
-                    <span className="font-sans text-[11px] tracking-normal text-primary normal-case">On now</span>
+                    <span className="text-status-active">On now</span>
                   )}
                 </h3>
                 <ul className="divide-y divide-border">
                   <AnimatePresence initial={false}>
                     {lines.map((item) => (
-                      <motion.li
-                        key={item.id}
-                        layout="position"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0, transition: { duration: 0.15 } }}
-                        transition={{ duration: 0.2, ease: EASE }}
-                        className="overflow-hidden"
-                      >
+                      <motion.li key={item.id} layout="position" {...collapseMotion} className="overflow-hidden">
                         <TicketLine
                           item={item}
                           editable={editable}
@@ -157,10 +150,10 @@ export function Ticket({ order, permissions, className }: TicketProps) {
         )}
       </div>
 
-      <div className="space-y-3 border-t border-border px-5 py-4">
+      <div className="space-y-2.5 border-t border-border px-4 py-3">
         <div className="flex items-baseline justify-between">
           <span className="text-sm text-muted-foreground">Total</span>
-          <span className="font-serif text-2xl tabular-nums">{formatPrice(order.totalAmount)}</span>
+          <span className="text-lg font-semibold tabular-nums">{formatPrice(order.totalAmount)}</span>
         </div>
         {editable && (
           <div className="flex flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
@@ -247,15 +240,15 @@ function TicketLine({ item, editable, permissions, busyAction, onQuantity, onRem
   const ready = item.status === 'Ready'
 
   return (
-    <div className={cn('py-3', ready && '-mx-2 rounded-lg bg-primary-soft px-2')}>
-      <div className="flex items-start gap-3">
-        <span className={cn('w-7 shrink-0 pt-px text-[15px] font-medium tabular-nums', done && 'text-muted-foreground')}>
+    <div className={cn('py-2.5', ready && cn('-mx-2 rounded-md border px-2', STATUS_TONE_CLASSES.attention.surface))}>
+      <div className="flex items-start gap-2.5">
+        <span className={cn('w-7 shrink-0 text-sm font-semibold tabular-nums', done && 'text-muted-foreground')}>
           {item.quantity}×
         </span>
         <div className="min-w-0 flex-1">
           <p
             className={cn(
-              'flex items-center gap-1.5 text-[15px] leading-snug font-medium',
+              'flex items-center gap-1.5 text-sm leading-snug font-medium',
               done && 'text-muted-foreground',
               item.status === 'Cancelled' && 'line-through',
             )}
@@ -263,24 +256,24 @@ function TicketLine({ item, editable, permissions, busyAction, onQuantity, onRem
             <span className="min-w-0 break-words">{item.name}</span>
           </p>
           {(item.seatNumber !== null || item.notes) && (
-            <p className="mt-0.5 text-sm text-muted-foreground">
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
               {item.seatNumber !== null && <span className="font-medium text-foreground/80">Seat {item.seatNumber}</span>}
               {item.seatNumber !== null && item.notes && <span aria-hidden="true"> · </span>}
-              {item.notes && <span className="italic">{item.notes}</span>}
+              {item.notes && <span>{item.notes}</span>}
             </p>
           )}
           <AllergenBadges allergens={item.allergens} className="mt-1.5" />
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           <ItemStatusChip status={item.status} />
-          <span className={cn('text-sm tabular-nums', done ? 'text-muted-foreground' : 'text-foreground/80')}>
+          <span className={cn('text-[13px] tabular-nums', done ? 'text-muted-foreground' : 'text-foreground/85')}>
             {formatPrice(item.totalPrice)}
           </span>
         </div>
       </div>
 
       {editable && !done && (
-        <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-10">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-9.5">
           {draft && (
             <>
               <QuantityStepper label={`Quantity of ${item.name}`} value={item.quantity} onChange={onQuantity} />
@@ -290,19 +283,19 @@ function TicketLine({ item, editable, permissions, busyAction, onQuantity, onRem
             </>
           )}
           {canServe(item) && (
-            <Button size="sm" className="h-9 px-4" onClick={onServe} disabled={pending} aria-busy={busyAction === 'serve'}>
+            <Button size="sm" onClick={onServe} disabled={pending} aria-busy={busyAction === 'serve'}>
               {icon('serve', <HandPlatter aria-hidden="true" />)}
               Serve
             </Button>
           )}
           {permissions.canProduce && canStart(item) && (
-            <Button size="sm" variant="outline" className="h-9" onClick={onStart} disabled={pending} aria-busy={busyAction === 'start'}>
+            <Button size="sm" variant="outline" onClick={onStart} disabled={pending} aria-busy={busyAction === 'start'}>
               {icon('start', <Play aria-hidden="true" />)}
               Start
             </Button>
           )}
           {permissions.canProduce && canMarkReady(item) && (
-            <Button size="sm" variant="outline" className="h-9" onClick={onReady} disabled={pending} aria-busy={busyAction === 'ready'}>
+            <Button size="sm" variant="outline" onClick={onReady} disabled={pending} aria-busy={busyAction === 'ready'}>
               {icon('ready', <ChefHat aria-hidden="true" />)}
               Mark ready
             </Button>
@@ -311,7 +304,7 @@ function TicketLine({ item, editable, permissions, busyAction, onQuantity, onRem
             <Button
               size="sm"
               variant="ghost"
-              className="ml-auto h-9 text-muted-foreground hover:text-destructive"
+              className="ml-auto text-muted-foreground hover:text-destructive"
               onClick={onCancel}
               disabled={pending}
             >
@@ -342,7 +335,7 @@ function LineIconButton({
         <Button
           variant="ghost"
           size="icon"
-          className={cn('size-9 text-muted-foreground', destructive && 'hover:bg-destructive/10 hover:text-destructive')}
+          className={cn('text-muted-foreground', destructive && 'hover:bg-destructive/10 hover:text-destructive')}
           onClick={onClick}
           aria-label={label}
         >

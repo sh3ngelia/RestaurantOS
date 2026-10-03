@@ -1,6 +1,8 @@
 import { Link } from 'react-router'
 
 import type { TableStatus } from '@/api/tables'
+import { filterChipClass, filterChipCountClass } from '@/lib/controls'
+import { STATUS_TONE_CLASSES } from '@/lib/status-tones'
 import { cn } from '@/lib/utils'
 import { STATUS_FILTERS, STATUS_TONES, type StatusFilterId } from '../status'
 
@@ -14,7 +16,7 @@ interface StatusFilterProps {
 export function StatusFilter({ activeId, counts, total }: StatusFilterProps) {
   return (
     <nav aria-label="Filter tables by status">
-      <ul className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {STATUS_FILTERS.map((filter) => {
           const active = filter.id === activeId
           const count = filter.status ? counts[filter.status] : total
@@ -25,19 +27,16 @@ export function StatusFilter({ activeId, counts, total }: StatusFilterProps) {
                 replace
                 preventScrollReset
                 aria-current={active ? 'true' : undefined}
-                className={cn(
-                  'flex h-10 items-center gap-2 rounded-full border px-4 text-sm whitespace-nowrap outline-none',
-                  'transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring',
-                  active
-                    ? 'border-foreground/80 bg-foreground font-medium text-background'
-                    : 'border-border text-muted-foreground hover:bg-accent/60 hover:text-foreground',
-                )}
+                className={filterChipClass(active)}
               >
                 {filter.status && (
-                  <span className={cn('size-2 rounded-full', STATUS_TONES[filter.status].dot)} aria-hidden="true" />
+                  <span
+                    className={cn('size-1.5 rounded-full', STATUS_TONE_CLASSES[STATUS_TONES[filter.status]].dot)}
+                    aria-hidden="true"
+                  />
                 )}
                 {filter.label}
-                <span className={cn('font-mono text-[11px] tabular-nums', active ? 'text-background/70' : 'text-muted-foreground/80')}>
+                <span className={filterChipCountClass(active)}>
                   {count}
                   <span className="sr-only"> tables</span>
                 </span>

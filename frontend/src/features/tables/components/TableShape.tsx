@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 /*
  * A top-down sketch of the table with its chairs, drawn in SVG:
  * round for 1-2 guests, square for 3-4, a long banquet table beyond that.
- * Chairs fill with copper when the table is seated.
+ * Chairs fill in the "active" status colour when the table is seated.
  */
 
 const CHAIR = { w: 11, h: 7, gap: 5 } as const
@@ -84,8 +84,8 @@ function tableShapeFor(capacity: number): 'round' | 'square' | 'long' {
 
 const TONES: Record<TableStatus, { table: string; chair: string; dashed?: boolean }> = {
   Available: { table: 'fill-muted stroke-border-strong', chair: 'fill-transparent stroke-muted-foreground/60' },
-  Occupied: { table: 'fill-primary-soft stroke-primary', chair: 'fill-primary stroke-primary' },
-  Reserved: { table: 'fill-reserved-soft stroke-reserved', chair: 'fill-transparent stroke-reserved', dashed: true },
+  Occupied: { table: 'fill-status-active/15 stroke-status-active', chair: 'fill-status-active stroke-status-active' },
+  Reserved: { table: 'fill-status-waiting/10 stroke-status-waiting', chair: 'fill-transparent stroke-status-waiting', dashed: true },
 }
 
 export function TableShape({ capacity, status, className }: { capacity: number; status: TableStatus; className?: string }) {
@@ -111,7 +111,7 @@ export function TableShape({ capacity, status, className }: { capacity: number; 
           rx={2.5}
           transform={`rotate(${chair.rotate} ${chair.x} ${chair.y})`}
           strokeWidth={1.25}
-          className={cn('transition-[fill,stroke] duration-300', tone.chair)}
+          className={cn('transition-[fill,stroke] duration-150', tone.chair)}
         />
       ))}
       {table.kind === 'round' ? (
@@ -121,7 +121,7 @@ export function TableShape({ capacity, status, className }: { capacity: number; 
           r={table.r}
           strokeWidth={1.5}
           strokeDasharray={tone.dashed ? '4 3' : undefined}
-          className={cn('transition-[fill,stroke] duration-300', tone.table)}
+          className={cn('transition-[fill,stroke] duration-150', tone.table)}
         />
       ) : (
         <rect
@@ -129,10 +129,10 @@ export function TableShape({ capacity, status, className }: { capacity: number; 
           y={table.y}
           width={table.w}
           height={table.h}
-          rx={5}
+          rx={3}
           strokeWidth={1.5}
           strokeDasharray={tone.dashed ? '4 3' : undefined}
-          className={cn('transition-[fill,stroke] duration-300', tone.table)}
+          className={cn('transition-[fill,stroke] duration-150', tone.table)}
         />
       )}
     </svg>

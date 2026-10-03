@@ -23,7 +23,7 @@ export function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={`Account menu for ${session.fullName}`}
-        className="flex items-center gap-3 rounded-xl py-1 pr-2 pl-1 text-left outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent"
+        className="touch-target flex items-center gap-2.5 rounded-md py-1 pr-2 pl-1 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent"
       >
         <UserAvatar name={session.fullName} />
         <span className="hidden min-w-0 flex-col md:flex">
@@ -34,9 +34,9 @@ export function UserMenu() {
         <ChevronsUpDown className="hidden size-3.5 text-muted-foreground md:block" aria-hidden="true" />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel className="flex items-center gap-3">
-          <UserAvatar name={session.fullName} className="size-10" />
+          <UserAvatar name={session.fullName} />
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{session.fullName}</p>
             <RoleBadge role={session.role} size="sm" className="mt-1" />

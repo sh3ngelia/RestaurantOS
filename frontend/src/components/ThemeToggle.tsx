@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from 'motion/react'
 import { Moon, Sun } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -18,20 +17,9 @@ export function ThemeToggle({ className }: { className?: string }) {
           size="icon"
           onClick={toggleTheme}
           aria-label={label}
-          className={cn('overflow-hidden text-muted-foreground hover:text-foreground', className)}
+          className={cn('text-muted-foreground hover:text-foreground', className)}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.span
-              key={theme}
-              initial={{ y: 12, opacity: 0, rotate: -30 }}
-              animate={{ y: 0, opacity: 1, rotate: 0 }}
-              exit={{ y: -12, opacity: 0, rotate: 30 }}
-              transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
-              className="grid place-items-center"
-            >
-              {theme === 'dark' ? <Moon aria-hidden="true" /> : <Sun aria-hidden="true" />}
-            </motion.span>
-          </AnimatePresence>
+          {theme === 'dark' ? <Moon aria-hidden="true" /> : <Sun aria-hidden="true" />}
         </Button>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>

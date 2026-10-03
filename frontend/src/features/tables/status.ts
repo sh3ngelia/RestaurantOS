@@ -1,6 +1,7 @@
 import { Eraser, Lock, LockOpen, UserCheck, UsersRound, type LucideIcon } from 'lucide-react'
 
 import type { DiningTable, TableAction, TableStatus } from '@/api/tables'
+import type { StatusTone } from '@/lib/status-tones'
 
 /** Floor language: the API says Available/Occupied, the host says free/seated. */
 export const STATUS_LABELS: Record<TableStatus, string> = {
@@ -106,23 +107,11 @@ export const ACTIONS_BY_STATE: Record<FloorState, readonly QuickAction[]> = {
   free: ['seat', 'hold'],
 }
 
-/** Visual treatment per status: calm neutral, warm copper, and a cool second tone. */
-export const STATUS_TONES: Record<TableStatus, { card: string; badge: string; dot: string }> = {
-  Available: {
-    card: 'border-border bg-card',
-    badge: 'border-border-strong text-muted-foreground',
-    dot: 'bg-muted-foreground/60',
-  },
-  Occupied: {
-    card: 'border-primary/45 bg-primary-soft shadow-[0_14px_36px_-18px_var(--primary)]',
-    badge: 'border-primary/30 bg-primary/15 text-primary',
-    dot: 'bg-primary',
-  },
-  Reserved: {
-    card: 'border-reserved/50 bg-reserved-soft',
-    badge: 'border-reserved/35 bg-reserved/10 text-reserved',
-    dot: 'bg-reserved',
-  },
+/** Each status's tone in the app-wide palette: free is neutral, seated is active, reserved is waiting. */
+export const STATUS_TONES: Record<TableStatus, StatusTone> = {
+  Available: 'neutral',
+  Occupied: 'active',
+  Reserved: 'waiting',
 }
 
 // ── Filters (kept in ?status=) ───────────────────────────────────────────────

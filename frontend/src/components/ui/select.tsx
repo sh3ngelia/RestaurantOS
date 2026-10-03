@@ -13,10 +13,10 @@ function SelectTrigger({ className, children, ...props }: React.ComponentProps<t
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        'flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-input bg-sunken px-3.5 text-left text-[15px] text-foreground',
+        'touch-target flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-sunken px-3 text-left text-sm text-foreground',
         'transition-[border-color,box-shadow] duration-150 outline-none hover:border-border-strong',
-        'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25 data-placeholder:text-muted-foreground/70',
-        'aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive/25 disabled:cursor-not-allowed disabled:opacity-60',
+        'focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring data-placeholder:text-muted-foreground/70',
+        'aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive disabled:cursor-not-allowed disabled:opacity-60',
         '[&>span]:truncate',
         className,
       )}
@@ -43,14 +43,14 @@ function SelectContent({
         position={position}
         sideOffset={6}
         className={cn(
-          'relative z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-xl border border-border-strong bg-popover text-popover-foreground shadow-lifted',
+          'relative z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden rounded-md border border-border-strong bg-popover text-popover-foreground',
           'origin-(--radix-select-content-transform-origin) animate-in duration-150 fade-in-0 zoom-in-95',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           className,
         )}
         {...props}
       >
-        <SelectPrimitive.Viewport className="max-h-72 p-1.5">{children}</SelectPrimitive.Viewport>
+        <SelectPrimitive.Viewport className="max-h-72 p-1">{children}</SelectPrimitive.Viewport>
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   )
@@ -61,7 +61,7 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        'relative flex w-full cursor-default items-center rounded-md py-2 pr-8 pl-2.5 text-sm outline-none select-none',
+        'touch-target relative flex w-full cursor-default items-center rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none',
         'focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50',
         className,
       )}
@@ -70,7 +70,7 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
       <span className="absolute right-2.5 flex size-4 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <Check className="size-4 text-primary" aria-hidden="true" />
+          <Check className="size-4" aria-hidden="true" />
         </SelectPrimitive.ItemIndicator>
       </span>
     </SelectPrimitive.Item>

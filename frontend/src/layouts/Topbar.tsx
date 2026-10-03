@@ -17,7 +17,7 @@ export function Topbar({ onOpenNav, navOpen }: { onOpenNav: () => void; navOpen:
   const title = useSectionTitle()
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md supports-backdrop-filter:bg-background/65 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4 sm:px-6">
       <Button
         variant="ghost"
         size="icon"

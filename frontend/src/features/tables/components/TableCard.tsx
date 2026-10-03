@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import type { Order } from '@/api/orders'
 import type { DiningTable, TableNextReservation } from '@/api/tables'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { StatusChip } from '@/components/StatusChip'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { formatTime } from '@/lib/dates'
+import { STATUS_TONE_CLASSES } from '@/lib/status-tones'
 import { cn } from '@/lib/utils'
 import { notifyTableError, useQuickAction } from '../hooks'
 import { canRunQuickAction, type TablePermissions } from '../permissions'
@@ -96,8 +98,8 @@ export function TableCard({ table, permissions, onEdit, onDelete, order, canTake
   return (
     <div
       className={cn(
-        'relative h-full rounded-2xl border transition-[background-color,border-color,box-shadow] duration-300',
-        STATUS_TONES[table.status].card,
+        'relative h-full rounded-md border transition-[background-color,border-color] duration-150',
+        STATUS_TONE_CLASSES[STATUS_TONES[table.status]].surface,
         state === 'held' && 'border-dashed',
       )}
     >
@@ -107,46 +109,42 @@ export function TableCard({ table, permissions, onEdit, onDelete, order, canTake
             type="button"
             aria-label={describe(table, state, seats)}
             className={cn(
-              'flex h-full min-h-48 w-full flex-col rounded-2xl p-4 text-left outline-none sm:p-5',
-              'transition-transform duration-150 active:scale-[0.98]',
+              'flex h-full min-h-40 w-full flex-col rounded-md p-3 text-left outline-none',
               'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
             )}
           >
             <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-mono text-[10.5px] tracking-[0.16em] text-muted-foreground uppercase">Table</p>
-                <p className="mt-0.5 font-serif text-4xl leading-none font-normal tabular-nums">{table.tableNumber}</p>
-              </div>
+              <p className="text-base leading-tight font-semibold tabular-nums">Table {table.tableNumber}</p>
               <StatusBadge status={table.status} />
             </div>
 
-            <TableShape capacity={table.capacity} status={table.status} className="my-4 h-24 w-full" />
+            <TableShape capacity={table.capacity} status={table.status} className="my-3 h-16 w-full" />
 
-            <div className={cn('mt-auto space-y-1.5', permissions.canManage && 'pr-10')}>
+            <div className={cn('mt-auto space-y-1', permissions.canManage && 'pr-10')}>
               <TableNote table={table} state={state} />
               {order && <OrderStatusLine order={order} className="pb-0.5" />}
-              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Users className="size-4" aria-hidden="true" />
+              <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                <Users className="size-3.5" aria-hidden="true" />
                 {seats}
               </p>
             </div>
           </button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-72 p-2">
-          <div className="flex items-start justify-between gap-3 px-2.5 pt-1.5 pb-2.5">
+        <PopoverContent className="w-72 p-1.5">
+          <div className="flex items-start justify-between gap-3 px-2 pt-1 pb-2">
             <div className="min-w-0">
-              <p className="font-serif text-xl leading-tight">Table {table.tableNumber}</p>
+              <p className="text-sm leading-tight font-semibold">Table {table.tableNumber}</p>
               <p className="text-xs text-muted-foreground">{seats}</p>
             </div>
             <StatusBadge status={table.status} />
           </div>
           {(state === 'booked' || state === 'held') && (
-            <div className="px-2.5 pb-2.5">
+            <div className="px-2 pb-2">
               <TableNote table={table} state={state} />
             </div>
           )}
-          <div className="grid gap-1 border-t border-border pt-2">
+          <div className="grid gap-0.5 border-t border-border pt-1.5">
             {(order || (canTakeOrders && state === 'seated')) && (
               <TableOrderLink table={table} order={order} onNavigate={() => setOpen(false)} />
             )}
@@ -160,14 +158,16 @@ export function TableCard({ table, permissions, onEdit, onDelete, order, canTake
                   type="button"
                   onClick={() => run(action)}
                   className={cn(
-                    'flex min-h-12 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left outline-none',
+                    'flex min-h-11 w-full items-center gap-3 rounded-sm px-2 py-1.5 text-left outline-none',
                     'transition-colors duration-150 hover:bg-accent focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring',
                   )}
                 >
                   <span
                     className={cn(
-                      'grid size-9 shrink-0 place-items-center rounded-lg border',
-                      secondary ? 'border-border text-muted-foreground' : STATUS_TONES[definition.apply(table).status].badge,
+                      'grid size-8 shrink-0 place-items-center rounded-sm border',
+                      secondary
+                        ? 'border-border text-muted-foreground'
+                        : STATUS_TONE_CLASSES[STATUS_TONES[definition.apply(table).status]].chip,
                     )}
                   >
                     <Icon className="size-4" aria-hidden="true" />
@@ -205,7 +205,7 @@ export function TableCard({ table, permissions, onEdit, onDelete, order, canTake
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-2.5 bottom-2.5 size-10 text-muted-foreground hover:text-foreground"
+              className="absolute right-1.5 bottom-1.5 text-muted-foreground hover:text-foreground"
               aria-label={`Manage table ${table.tableNumber}`}
             >
               <Ellipsis aria-hidden="true" />
@@ -234,7 +234,7 @@ function TableNote({ table, state }: { table: DiningTable; state: FloorState }) 
 
   if (state === 'held') {
     return (
-      <p className="flex items-center gap-1.5 text-sm font-medium text-reserved">
+      <p className="flex items-center gap-1.5 text-[13px] font-medium text-status-waiting">
         <Lock className="size-3.5" aria-hidden="true" />
         Held
       </p>
@@ -245,21 +245,21 @@ function TableNote({ table, state }: { table: DiningTable; state: FloorState }) 
 
   if (state === 'booked') {
     return (
-      <p className="flex min-w-0 items-center gap-2 text-sm font-medium text-reserved">
+      <p className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-status-waiting">
         <span className="truncate tabular-nums">
           {next.guestName} · {next.guestCount} · {bookingTime(next)}
         </span>
         {next.isLate && (
-          <span className="shrink-0 rounded-full border border-destructive/30 bg-destructive/10 px-1.5 py-px text-[11px] font-medium text-destructive">
+          <StatusChip tone="attention" className="shrink-0">
             Late
-          </span>
+          </StatusChip>
         )}
       </p>
     )
   }
 
   return (
-    <p className="flex min-w-0 items-center gap-1 text-xs font-medium text-reserved">
+    <p className="flex min-w-0 items-center gap-1 text-xs font-medium text-status-waiting">
       <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
       <span className="truncate tabular-nums">
         Next: {bookingTime(next)} · {firstName(next.guestName)} ({next.guestCount})

@@ -1,4 +1,5 @@
 import { COURSES, type Course, type Order, type OrderItem, type OrderItemStatus } from '@/api/orders'
+import type { StatusTone } from '@/lib/status-tones'
 
 /*
  * Order rules mirrored from the Order / OrderItem entities, so the UI only offers
@@ -16,17 +17,28 @@ export const ITEM_STATUS_LABELS: Record<OrderItemStatus, string> = {
 }
 
 /**
- * Calm, distinct chips. Ready is the loudest thing on the screen: food is waiting at the pass.
- * Held shares the cool "reserved" tone (waiting its turn); preparing is soft copper.
+ * Each item status's tone in the app-wide palette. Ready is the loudest thing on the
+ * screen (food is waiting at the pass); held is "waiting" its turn; preparing is "active".
  */
-export const ITEM_STATUS_TONES: Record<OrderItemStatus, string> = {
-  Draft: 'border-dashed border-border-strong text-muted-foreground',
-  Held: 'border-reserved/35 bg-reserved/10 text-reserved',
-  Pending: 'border-border-strong text-foreground/80',
-  InProgress: 'border-primary/30 bg-primary/10 text-primary',
-  Ready: 'border-primary bg-primary text-primary-foreground',
-  Served: 'border-border text-muted-foreground',
-  Cancelled: 'border-border text-muted-foreground line-through',
+export const ITEM_STATUS_TONES: Record<OrderItemStatus, StatusTone> = {
+  Draft: 'neutral',
+  Held: 'waiting',
+  Pending: 'neutral',
+  InProgress: 'active',
+  Ready: 'attention',
+  Served: 'muted',
+  Cancelled: 'muted',
+}
+
+/** Tones for the per-order status counts, matching the item chips. */
+export const SUMMARY_TONES: Record<keyof OrderSummary, StatusTone> = {
+  ready: 'attention',
+  preparing: 'active',
+  sent: 'neutral',
+  held: 'waiting',
+  drafts: 'neutral',
+  items: 'neutral',
+  served: 'muted',
 }
 
 export const COURSE_LABELS: Record<Course, { one: string; many: string }> = {

@@ -1,6 +1,7 @@
 import { CalendarCheck, CalendarX2, UserX, UsersRound, type LucideIcon } from 'lucide-react'
 
 import type { Reservation, ReservationAction, ReservationStatus } from '@/api/reservations'
+import type { StatusTone } from '@/lib/status-tones'
 
 export const STATUS_LABELS: Record<ReservationStatus, string> = {
   Pending: 'Pending',
@@ -23,35 +24,16 @@ export function countsTowardCovers(reservation: Reservation) {
 }
 
 /**
- * Calm, distinct treatments that echo the Tables module: a booked table is the
- * cool "reserved" tone, arrived guests are seated copper, finished bookings recede.
+ * Each status's tone in the app-wide palette, matching the Tables module: a confirmed
+ * booking is "waiting" like a reserved table, arrived guests are "active" like a seated one.
+ * Pending is drawn dashed: it isn't confirmed yet.
  */
-export const STATUS_TONES: Record<ReservationStatus, { row: string; badge: string; dot: string }> = {
-  Pending: {
-    row: 'border-dashed border-border-strong bg-card',
-    badge: 'border-dashed border-border-strong text-muted-foreground',
-    dot: 'bg-muted-foreground/60',
-  },
-  Confirmed: {
-    row: 'border-border bg-card',
-    badge: 'border-reserved/35 bg-reserved/10 text-reserved',
-    dot: 'bg-reserved',
-  },
-  Arrived: {
-    row: 'border-primary/35 bg-primary-soft',
-    badge: 'border-primary/30 bg-primary/15 text-primary',
-    dot: 'bg-primary',
-  },
-  Cancelled: {
-    row: 'border-border bg-card/40 opacity-70',
-    badge: 'border-border text-muted-foreground',
-    dot: 'bg-muted-foreground/40',
-  },
-  NoShow: {
-    row: 'border-border bg-card/40 opacity-70',
-    badge: 'border-destructive/30 text-destructive',
-    dot: 'bg-destructive/70',
-  },
+export const STATUS_TONES: Record<ReservationStatus, StatusTone> = {
+  Pending: 'neutral',
+  Confirmed: 'waiting',
+  Arrived: 'active',
+  Cancelled: 'muted',
+  NoShow: 'danger',
 }
 
 interface ActionDefinition {

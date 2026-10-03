@@ -116,7 +116,6 @@ function EditForm({ reservation, onDone }: { reservation: Reservation; onDone: (
             onChange={(e) => form.setValue('guestName', e.target.value)}
             onBlur={() => form.touch('guestName')}
             autoComplete="off"
-            className="h-12"
             aria-invalid={!!form.errorFor('guestName')}
             aria-describedby={fieldDescribedBy(id('guestName'), { error: form.errorFor('guestName') })}
           />
@@ -131,7 +130,7 @@ function EditForm({ reservation, onDone }: { reservation: Reservation; onDone: (
             onChange={(e) => form.setValue('guestPhoneNumber', e.target.value)}
             onBlur={() => form.touch('guestPhoneNumber')}
             autoComplete="off"
-            className="h-12 tabular-nums"
+            className="tabular-nums"
             aria-invalid={!!form.errorFor('guestPhoneNumber')}
             aria-describedby={fieldDescribedBy(id('guestPhoneNumber'), { error: form.errorFor('guestPhoneNumber') })}
           />

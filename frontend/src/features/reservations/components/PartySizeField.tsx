@@ -31,7 +31,7 @@ export function PartySizeField({ id, value, onChange, onBlur, error }: PartySize
           type="button"
           variant="outline"
           size="icon"
-          className="size-12 shrink-0"
+          className="shrink-0"
           onClick={() => step(-1)}
           disabled={valid && n <= RESERVATION_LIMITS.guestsMin}
           aria-label="One guest fewer"
@@ -45,7 +45,7 @@ export function PartySizeField({ id, value, onChange, onBlur, error }: PartySize
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
-          className="h-12 min-w-0 text-center text-lg tabular-nums"
+          className="min-w-0 text-center tabular-nums"
           aria-invalid={!!error}
           aria-describedby={fieldDescribedBy(id, { error })}
         />
@@ -53,7 +53,7 @@ export function PartySizeField({ id, value, onChange, onBlur, error }: PartySize
           type="button"
           variant="outline"
           size="icon"
-          className="size-12 shrink-0"
+          className="shrink-0"
           onClick={() => step(1)}
           disabled={valid && n >= RESERVATION_LIMITS.guestsMax}
           aria-label="One guest more"

@@ -25,7 +25,7 @@ export function PriceEditor({ item, editable, muted = false }: PriceEditorProps)
   const inputId = useId()
   const changePrice = useChangePrice()
 
-  const priceClassName = cn('text-[15px] font-medium tabular-nums', muted && 'text-muted-foreground')
+  const priceClassName = cn('text-sm font-medium tabular-nums', muted && 'text-muted-foreground')
 
   if (!editable) return <span className={priceClassName}>{formatPrice(item.price)}</span>
 
@@ -106,8 +106,8 @@ export function PriceEditor({ item, editable, muted = false }: PriceEditorProps)
           aria-invalid={!!error}
           aria-describedby={error ? `${inputId}-error` : `${inputId}-hint`}
           className={cn(
-            'h-8 w-28 rounded-md border border-ring bg-sunken pr-2 pl-6 text-right text-[15px] font-medium tabular-nums outline-none',
-            'ring-[3px] ring-ring/25 aria-invalid:border-destructive aria-invalid:ring-destructive/25',
+            'h-8 w-28 rounded-md border border-ring bg-sunken pr-2 pl-6 text-right text-sm font-medium tabular-nums outline-none',
+            'ring-1 ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive',
           )}
         />
         <span id={`${inputId}-hint`} className="sr-only">
@@ -117,7 +117,7 @@ export function PriceEditor({ item, editable, muted = false }: PriceEditorProps)
           <p
             id={`${inputId}-error`}
             role="alert"
-            className="absolute top-full right-0 z-10 mt-1.5 w-max max-w-48 rounded-md border border-destructive/30 bg-popover px-2 py-1 text-xs text-destructive shadow-soft"
+            className="absolute top-full right-0 z-10 mt-1 w-max max-w-48 rounded-sm border border-destructive/40 bg-popover px-2 py-1 text-xs text-destructive"
           >
             {error}
           </p>
@@ -133,7 +133,7 @@ export function PriceEditor({ item, editable, muted = false }: PriceEditorProps)
       onClick={startEditing}
       aria-label={`Change price of ${item.name}, currently ${formatPrice(item.price)}`}
       className={cn(
-        'group/price -mr-1.5 flex h-8 shrink-0 items-center gap-1.5 rounded-md px-1.5 outline-none transition-colors',
+        'group/price touch-target -mr-1.5 flex h-8 shrink-0 items-center gap-1.5 rounded-md px-1.5 outline-none transition-colors duration-150',
         'hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring',
         priceClassName,
       )}

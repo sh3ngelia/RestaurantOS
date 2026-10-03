@@ -50,7 +50,7 @@ export function DateTimeFields({
             onDateChange(next, isDayKey(next) ? timeSlotsFor(next, now, keepTime) : [])
           }}
           onBlur={onDateBlur}
-          className="h-12 tabular-nums [color-scheme:inherit]"
+          className="tabular-nums [color-scheme:inherit]"
           aria-invalid={!!dateError}
           aria-describedby={fieldDescribedBy(dateId, { error: dateError })}
         />
@@ -65,7 +65,7 @@ export function DateTimeFields({
         <Select value={slots.includes(time) ? time : ''} onValueChange={onTimeChange} disabled={slots.length === 0}>
           <SelectTrigger
             id={timeId}
-            className="h-12 tabular-nums"
+            className="tabular-nums"
             aria-invalid={!!timeError}
             aria-describedby={fieldDescribedBy(timeId, { error: timeError, hint: noSlots })}
           >

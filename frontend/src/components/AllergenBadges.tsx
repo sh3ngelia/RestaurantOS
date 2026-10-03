@@ -1,6 +1,7 @@
 import { TriangleAlert } from 'lucide-react'
 
 import type { Allergen } from '@/api/menu'
+import { STATUS_TONE_CLASSES } from '@/lib/status-tones'
 import { cn } from '@/lib/utils'
 
 interface AllergenBadgesProps {
@@ -21,16 +22,14 @@ export function AllergenBadges({ allergens, className, tone = 'warning', max }: 
   return (
     <span className={cn('flex flex-wrap items-center gap-1', className)}>
       <span className="sr-only">Contains: {allergens.join(', ')}.</span>
-      {tone === 'warning' && <TriangleAlert className="size-3.5 shrink-0 text-destructive" aria-hidden="true" />}
+      {tone === 'warning' && <TriangleAlert className="size-3.5 shrink-0 text-status-danger" aria-hidden="true" />}
       {shown.map((allergen) => (
         <span
           key={allergen}
           aria-hidden="true"
           className={cn(
-            'rounded-full border px-1.5 py-px text-[11px] leading-4 font-medium whitespace-nowrap',
-            tone === 'warning'
-              ? 'border-destructive/35 bg-destructive/10 text-destructive'
-              : 'border-border-strong text-muted-foreground',
+            'rounded-sm border px-1 text-[11px] leading-4 font-medium whitespace-nowrap',
+            tone === 'warning' ? STATUS_TONE_CLASSES.danger.chip : STATUS_TONE_CLASSES.muted.chip,
           )}
         >
           {allergen}

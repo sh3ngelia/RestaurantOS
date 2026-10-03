@@ -2,9 +2,8 @@ import { AnimatePresence, motion } from 'motion/react'
 
 import type { Reservation } from '@/api/reservations'
 import { formatTime } from '@/lib/dates'
-import { ReservationRow } from './ReservationRow'
-
-const EASE = [0.2, 0.8, 0.2, 1] as const
+import { listItemMotion } from '@/lib/motion'
+import { ReservationRow, ReservationRowHeader } from './ReservationRow'
 
 interface ReservationTimelineProps {
   reservations: Reservation[]
@@ -36,43 +35,30 @@ function groupByHour(reservations: Reservation[]): HourGroup[] {
   return groups
 }
 
+/** The day's bookings as one divided list, with a sub-heading per hour. */
 export function ReservationTimeline({ reservations, now, isToday, onReschedule, onEdit, onCancel }: ReservationTimelineProps) {
   const groups = groupByHour(reservations)
   // The marker sits before the first hour that hasn't finished yet, when earlier hours exist.
   const nowIndex = isToday ? groups.findIndex((g) => g.startsAt.getTime() + 3_600_000 > now.getTime()) : -1
 
   return (
-    <ol aria-label="Bookings by hour" className="space-y-8">
-      <AnimatePresence initial={false} mode="popLayout">
-        {groups.map((group, index) => (
-          <motion.li
-            key={group.label}
-            layout="position"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, transition: { duration: 0.12 } }}
-            transition={{ duration: 0.22, ease: EASE }}
-          >
-            {index === nowIndex && index > 0 && <NowMarker now={now} />}
-            <div className="grid gap-3 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-5">
-              <h2 className="flex items-center gap-3 font-mono text-[11px] tracking-[0.16em] text-muted-foreground tabular-nums sm:block sm:pt-6">
+    <div className="overflow-hidden rounded-md border border-border bg-card">
+      <ReservationRowHeader />
+      <ol aria-label="Bookings by hour" className="divide-y divide-border border-border lg:border-t">
+        <AnimatePresence initial={false} mode="popLayout">
+          {groups.map((group, index) => (
+            <motion.li key={group.label} {...listItemMotion}>
+              {index === nowIndex && index > 0 && <NowMarker now={now} />}
+              <h2 className="flex items-center justify-between border-b border-border bg-sunken px-3 py-1.5 text-xs font-medium text-muted-foreground tabular-nums">
                 {group.label}
-                <span className="h-px flex-1 bg-border sm:hidden" aria-hidden="true" />
-                <span className="sr-only">
-                  , {group.items.length} {group.items.length === 1 ? 'booking' : 'bookings'}
+                <span className="font-normal">
+                  {group.items.length} {group.items.length === 1 ? 'booking' : 'bookings'}
                 </span>
               </h2>
-              <ul className="relative space-y-3 sm:border-l sm:border-border sm:pl-5">
+              <ul className="divide-y divide-border">
                 <AnimatePresence initial={false} mode="popLayout">
                   {group.items.map((reservation) => (
-                    <motion.li
-                      key={reservation.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.15 } }}
-                      transition={{ duration: 0.22, ease: EASE }}
-                    >
+                    <motion.li key={reservation.id} {...listItemMotion}>
                       <ReservationRow
                         reservation={reservation}
                         now={now}
@@ -84,11 +70,11 @@ export function ReservationTimeline({ reservations, now, isToday, onReschedule, 
                   ))}
                 </AnimatePresence>
               </ul>
-            </div>
-          </motion.li>
-        ))}
-      </AnimatePresence>
-    </ol>
+            </motion.li>
+          ))}
+        </AnimatePresence>
+      </ol>
+    </div>
   )
 }
 
@@ -97,14 +83,10 @@ function NowMarker({ now }: { now: Date }) {
     <div
       role="separator"
       aria-label={`Now, ${formatTime(now)}`}
-      className="mb-8 grid items-center gap-3 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-5"
+      className="flex items-center gap-2 border-b border-border px-3 py-1 text-xs font-medium tabular-nums"
     >
-      <span className="font-mono text-[11px] tracking-[0.16em] text-primary uppercase tabular-nums" aria-hidden="true">
-        Now {formatTime(now)}
-      </span>
-      <span className="relative hidden h-px bg-primary/60 sm:block" aria-hidden="true">
-        <span className="absolute top-1/2 -left-1 size-2 -translate-y-1/2 rounded-full bg-primary" />
-      </span>
+      <span aria-hidden="true">Now {formatTime(now)}</span>
+      <span className="h-px flex-1 bg-foreground/40" aria-hidden="true" />
     </div>
   )
 }

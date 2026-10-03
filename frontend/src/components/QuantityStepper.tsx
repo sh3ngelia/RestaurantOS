@@ -26,7 +26,7 @@ export function QuantityStepper({
   disabled = false,
   className,
 }: QuantityStepperProps) {
-  const button = size === 'lg' ? 'size-12' : 'size-9'
+  const button = size === 'lg' ? 'size-11' : 'size-9'
   return (
     <div role="group" aria-label={label} className={cn('flex items-center gap-1', className)}>
       <Button
@@ -44,7 +44,7 @@ export function QuantityStepper({
         aria-live="polite"
         className={cn(
           'grid place-items-center font-medium tabular-nums',
-          size === 'lg' ? 'h-12 min-w-14 text-xl' : 'h-9 min-w-8 text-[15px]',
+          size === 'lg' ? 'h-11 min-w-12 text-lg' : 'h-9 min-w-8 text-sm',
         )}
       >
         {value}

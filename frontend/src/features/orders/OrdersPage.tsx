@@ -7,16 +7,19 @@ import { getErrorMessage } from '@/api/errors'
 import type { Order } from '@/api/orders'
 import type { DiningTable } from '@/api/tables'
 import { EmptyState } from '@/components/EmptyState'
+import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TABLE_GRID } from '@/features/tables/floor'
 import { isForbidden, useTables } from '@/features/tables/hooks'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useNow } from '@/hooks/useNow'
+import { collapseMotion, listItemMotion } from '@/lib/motion'
+import { STATUS_TONE_CLASSES } from '@/lib/status-tones'
+import { cn } from '@/lib/utils'
 import { OrderTableCard } from './components/OrderTableCard'
 import { useOpenOrders } from './hooks'
 import { summarizeOrder } from './rules'
-
-const EASE = [0.2, 0.8, 0.2, 1] as const
 
 interface FloorEntry {
   key: string
@@ -46,41 +49,32 @@ export function OrdersPage() {
   const failed = ordersQuery.error ?? (tablesQuery.error && !floorForbidden ? tablesQuery.error : null)
 
   return (
-    <div className="space-y-8">
-      <header>
-        <p className="font-mono text-[11px] tracking-[0.18em] text-primary uppercase">Service</p>
-        <h1 className="mt-3 text-4xl leading-[1.05] font-light sm:text-5xl">Orders</h1>
-        <p className="mt-3 text-[15px] text-muted-foreground" aria-live="polite">
-          {loading || failed
-            ? 'Every seated table and what it has ordered.'
+    <div className="space-y-5">
+      <PageHeader
+        title="Orders"
+        description={
+          loading || failed
+            ? undefined
             : `${orders.length} open ${orders.length === 1 ? 'order' : 'orders'}${
                 readyOrders.length
                   ? ` · ${readyOrders.length} ${readyOrders.length === 1 ? 'table has' : 'tables have'} food ready`
                   : ''
-              }`}
-        </p>
-      </header>
+              }`
+        }
+      />
 
       <AnimatePresence initial={false}>
         {readyOrders.length > 0 && (
-          <motion.section
-            key="pass"
-            aria-labelledby="pass-heading"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: EASE }}
-            className="overflow-hidden"
-          >
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/40 bg-primary-soft px-4 py-3 sm:px-5">
-              <h2 id="pass-heading" className="flex items-center gap-2 font-sans text-sm font-semibold tracking-normal text-primary">
+          <motion.section key="pass" aria-labelledby="pass-heading" {...collapseMotion} className="overflow-hidden">
+            <div className={cn('flex flex-wrap items-center gap-3 rounded-md border px-3 py-2', STATUS_TONE_CLASSES.attention.surface)}>
+              <h2 id="pass-heading" className="flex items-center gap-2 text-sm font-semibold text-status-attention">
                 <BellRing className="size-4" aria-hidden="true" />
                 At the pass
               </h2>
-              <ul className="flex flex-wrap gap-2">
+              <ul className="flex flex-wrap gap-1.5">
                 {readyOrders.map(({ order, ready }) => (
                   <li key={order.id}>
-                    <Button asChild size="sm" className="h-9">
+                    <Button asChild size="sm">
                       <Link to={`/m/orders/${order.id}`}>
                         Table {order.tableNumber} · {ready} ready
                       </Link>
@@ -94,15 +88,15 @@ export function OrdersPage() {
       </AnimatePresence>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4" role="status" aria-label="Loading orders">
-          {Array.from({ length: 8 }, (_, i) => (
-            <Skeleton key={i} className="h-44 rounded-2xl" />
+        <div className={TABLE_GRID} role="status" aria-label="Loading orders">
+          {Array.from({ length: 10 }, (_, i) => (
+            <Skeleton key={i} className="h-36 rounded-md" />
           ))}
         </div>
       ) : failed ? (
         <EmptyState
           icon={CircleAlert}
-          title="Orders didn’t load"
+          title="Couldn’t load orders"
           description={getErrorMessage(failed)}
           action={
             <Button
@@ -124,21 +118,14 @@ export function OrdersPage() {
           description={
             floorForbidden
               ? 'Orders started for your tables will appear here.'
-              : 'Once a host seats guests, their tables appear here so you can start the order.'
+              : 'Seated tables appear here.'
           }
         />
       ) : (
-        <ul aria-label="Seated tables" className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5">
+        <ul aria-label="Seated tables" className={TABLE_GRID}>
           <AnimatePresence initial={false} mode="popLayout">
             {entries.map((entry) => (
-              <motion.li
-                key={entry.key}
-                layout
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
-                transition={{ duration: 0.22, ease: EASE }}
-              >
+              <motion.li key={entry.key} {...listItemMotion}>
                 <OrderTableCard tableNumber={entry.tableNumber} tableId={entry.tableId} order={entry.order} now={now} />
               </motion.li>
             ))}

@@ -180,7 +180,6 @@ function NewReservationForm({
           >
             <SelectTrigger
               id={id('tableId')}
-              className="h-12"
               aria-invalid={!!form.errorFor('tableId')}
               aria-describedby={fieldDescribedBy(id('tableId'), { error: form.errorFor('tableId') })}
             >
@@ -209,7 +208,6 @@ function NewReservationForm({
             onBlur={() => form.touch('guestName')}
             autoComplete="off"
             placeholder="e.g. Nino Beridze"
-            className="h-12"
             aria-invalid={!!form.errorFor('guestName')}
             aria-describedby={fieldDescribedBy(id('guestName'), { error: form.errorFor('guestName') })}
           />
@@ -225,7 +223,7 @@ function NewReservationForm({
             onBlur={() => form.touch('guestPhoneNumber')}
             autoComplete="off"
             placeholder="+995 555 12 34 56"
-            className="h-12 tabular-nums"
+            className="tabular-nums"
             aria-invalid={!!form.errorFor('guestPhoneNumber')}
             aria-describedby={fieldDescribedBy(id('guestPhoneNumber'), { error: form.errorFor('guestPhoneNumber') })}
           />

@@ -1,7 +1,8 @@
-import { Armchair, CalendarClock, CalendarX2, CircleAlert, Clock, Ellipsis, NotebookPen, Pencil, Phone, UserX, Users } from 'lucide-react'
+import { CalendarClock, CalendarX2, Ellipsis, Pencil, UserX } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { Reservation, ReservationAction } from '@/api/reservations'
+import { StatusChip } from '@/components/StatusChip'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -14,8 +15,30 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { formatTime } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { notifyReservationError, useReservationAction } from '../hooks'
-import { RESERVATION_ACTIONS, STATUS_TONES, canRun, isFinal, timingOf } from '../status'
+import { RESERVATION_ACTIONS, canRun, isFinal, timingOf } from '../status'
 import { ReservationStatusBadge } from './ReservationStatusBadge'
+
+/**
+ * Column template shared by the rows and the header above them. Below the desktop
+ * breakpoint a row stacks: time on the left, everything else beside it.
+ */
+const ROW_GRID =
+  'grid grid-cols-[3rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 lg:grid-cols-[3.5rem_minmax(0,1fr)_4.5rem_4.5rem_9rem_11rem_13rem] lg:items-center'
+
+/** Column labels above the list, on desktop where the rows read as a table. */
+export function ReservationRowHeader() {
+  return (
+    <div aria-hidden="true" className={cn(ROW_GRID, 'hidden border-l-2 border-l-transparent px-3 py-2 text-xs text-muted-foreground lg:grid')}>
+      <span>Time</span>
+      <span>Guest</span>
+      <span>Party</span>
+      <span>Table</span>
+      <span>Phone</span>
+      <span>Status</span>
+      <span />
+    </div>
+  )
+}
 
 interface ReservationRowProps {
   reservation: Reservation
@@ -69,160 +92,150 @@ export function ReservationRow({ reservation, now, onReschedule, onEdit, onCance
     <article
       aria-labelledby={nameId}
       className={cn(
-        'surface-edge flex flex-col gap-3 rounded-xl border p-4 transition-[background-color,border-color,opacity] duration-300 sm:flex-row sm:items-center sm:gap-5 sm:p-5',
-        STATUS_TONES[status].row,
-        timing?.kind === 'soon' && 'border-primary/40',
-        timing?.kind === 'late' && 'border-destructive/40',
+        ROW_GRID,
+        'border-l-2 px-3 py-2.5 transition-colors duration-150',
+        timing?.kind === 'late'
+          ? 'border-l-status-attention'
+          : timing?.kind === 'soon'
+            ? 'border-l-status-waiting'
+            : 'border-l-transparent',
       )}
     >
-      <div className="flex items-center gap-3 sm:w-20 sm:shrink-0 sm:flex-col sm:items-start sm:gap-1">
-        <p className={cn('font-serif text-2xl leading-none tabular-nums', final && 'text-muted-foreground')}>
-          <time dateTime={reservation.reservationTime}>{time}</time>
-        </p>
-        {timing && <TimingChip timing={timing} className="sm:hidden" />}
-      </div>
+      <p className={cn('pt-px text-sm font-semibold tabular-nums lg:pt-0', final && 'text-muted-foreground')}>
+        <time dateTime={reservation.reservationTime}>{time}</time>
+      </p>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <h3
             id={nameId}
             className={cn(
-              'font-sans text-[15px] font-medium tracking-normal',
-              status === 'Cancelled' && 'text-muted-foreground line-through decoration-muted-foreground/60',
+              'truncate text-sm font-medium',
+              final && 'text-muted-foreground',
+              status === 'Cancelled' && 'line-through decoration-muted-foreground/60',
             )}
           >
             {guestName}
           </h3>
-          <ReservationStatusBadge status={status} />
-          {timing && <TimingChip timing={timing} className="hidden sm:inline-flex" />}
+          <ReservationStatusBadge status={status} className="lg:hidden" />
+          {timing && <TimingChip timing={timing} className="lg:hidden" />}
         </div>
-
-        <dl className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <dt className="sr-only">Party size</dt>
-            <Users className="size-4" aria-hidden="true" />
-            <dd>
-              {guestCount} {guestCount === 1 ? 'guest' : 'guests'}
-            </dd>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <dt className="sr-only">Table</dt>
-            <Armchair className="size-4" aria-hidden="true" />
-            <dd>Table {tableNumber}</dd>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <dt className="sr-only">Phone</dt>
-            <Phone className="size-4" aria-hidden="true" />
-            <dd>
-              <a
-                href={telHref(reservation.guestPhoneNumber)}
-                className="rounded-sm tabular-nums underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={`Call ${guestName} on ${reservation.guestPhoneNumber}`}
-              >
-                {reservation.guestPhoneNumber}
-              </a>
-            </dd>
-          </div>
-        </dl>
-
         {reservation.notes && (
-          <p className="mt-2 flex gap-1.5 text-sm text-muted-foreground">
-            <NotebookPen className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <span className="line-clamp-2">
-              <span className="sr-only">Notes: </span>
-              {reservation.notes}
-            </span>
+          <p className="mt-0.5 line-clamp-1 text-[13px] text-muted-foreground">
+            <span className="sr-only">Notes: </span>
+            {reservation.notes}
           </p>
         )}
       </div>
 
-      {!final && (
-        <div className="flex items-center gap-2 border-t border-border pt-3 sm:border-0 sm:pt-0">
-          {showNoShow && (
-            <Button variant="outline" className="h-10 flex-1 sm:flex-none" onClick={() => run('no-show')}>
-              <UserX aria-hidden="true" />
-              No-show
-            </Button>
-          )}
-          {primary && PrimaryIcon && (
-            <Button
-              variant={timing || primary === 'confirm' ? 'default' : 'outline'}
-              className="h-10 flex-1 sm:flex-none"
-              onClick={() => run(primary)}
-            >
-              <PrimaryIcon aria-hidden="true" />
-              {RESERVATION_ACTIONS[primary].label}
-            </Button>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-10 shrink-0 text-muted-foreground" aria-label={`More actions for ${guestName}`}>
-                <Ellipsis aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => onReschedule(reservation)}>
-                <CalendarClock aria-hidden="true" />
-                Reschedule
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onEdit(reservation)}>
-                <Pencil aria-hidden="true" />
-                Edit details
-              </DropdownMenuItem>
-              {canRun('no-show', status) &&
-                !showNoShow &&
-                (noShowAllowed ? (
-                  <DropdownMenuItem onSelect={() => run('no-show')}>
-                    <UserX aria-hidden="true" />
-                    Mark as no-show
-                  </DropdownMenuItem>
-                ) : (
-                  // Soft-disabled rather than `disabled`, so it stays focusable and its tooltip can explain why.
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuItem
-                        aria-disabled="true"
-                        onSelect={(event) => event.preventDefault()}
-                        className="cursor-not-allowed text-muted-foreground opacity-60 focus:bg-transparent"
-                      >
-                        <UserX aria-hidden="true" />
-                        Mark as no-show
-                        <span className="sr-only">, available from {time}</span>
-                      </DropdownMenuItem>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="max-w-56">
-                      Available from {time}. A guest can't be a no-show before their booking time.
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onSelect={() => onCancel(reservation)}>
-                <CalendarX2 aria-hidden="true" />
-                Cancel booking
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      {/* Below desktop these sit on one line under the name; on desktop they become columns. */}
+      <dl className="col-start-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[13px] text-muted-foreground lg:contents">
+        <div>
+          <dt className="sr-only">Party size</dt>
+          <dd className="tabular-nums">
+            {guestCount} {guestCount === 1 ? 'guest' : 'guests'}
+          </dd>
         </div>
-      )}
+        <div>
+          <dt className="sr-only">Table</dt>
+          <dd className="tabular-nums">Table {tableNumber}</dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="sr-only">Phone</dt>
+          <dd className="truncate">
+            <a
+              href={telHref(reservation.guestPhoneNumber)}
+              className="rounded-sm tabular-nums underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Call ${guestName} on ${reservation.guestPhoneNumber}`}
+            >
+              {reservation.guestPhoneNumber}
+            </a>
+          </dd>
+        </div>
+      </dl>
+
+      <div className="hidden flex-wrap items-center gap-1.5 lg:flex">
+        <ReservationStatusBadge status={status} />
+        {timing && <TimingChip timing={timing} />}
+      </div>
+
+      <div className={cn('col-start-2 flex items-center gap-1.5 lg:col-start-auto lg:justify-end', final && 'hidden lg:flex')}>
+        {!final && (
+          <>
+            {showNoShow && (
+              <Button variant="outline" size="sm" onClick={() => run('no-show')}>
+                <UserX aria-hidden="true" />
+                No-show
+              </Button>
+            )}
+            {primary && PrimaryIcon && (
+              <Button size="sm" variant={timing || primary === 'confirm' ? 'default' : 'outline'} onClick={() => run(primary)}>
+                <PrimaryIcon aria-hidden="true" />
+                {RESERVATION_ACTIONS[primary].label}
+              </Button>
+            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground" aria-label={`More actions for ${guestName}`}>
+                  <Ellipsis aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => onReschedule(reservation)}>
+                  <CalendarClock aria-hidden="true" />
+                  Reschedule
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onEdit(reservation)}>
+                  <Pencil aria-hidden="true" />
+                  Edit details
+                </DropdownMenuItem>
+                {canRun('no-show', status) &&
+                  !showNoShow &&
+                  (noShowAllowed ? (
+                    <DropdownMenuItem onSelect={() => run('no-show')}>
+                      <UserX aria-hidden="true" />
+                      Mark as no-show
+                    </DropdownMenuItem>
+                  ) : (
+                    // Soft-disabled rather than `disabled`, so it stays focusable and its tooltip can explain why.
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuItem
+                          aria-disabled="true"
+                          onSelect={(event) => event.preventDefault()}
+                          className="cursor-not-allowed text-muted-foreground opacity-60 focus:bg-transparent"
+                        >
+                          <UserX aria-hidden="true" />
+                          Mark as no-show
+                          <span className="sr-only">, available from {time}</span>
+                        </DropdownMenuItem>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-56">
+                        Available from {time}. A guest can't be a no-show before their booking time.
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onSelect={() => onCancel(reservation)}>
+                  <CalendarX2 aria-hidden="true" />
+                  Cancel booking
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        )}
+      </div>
     </article>
   )
 }
 
 function TimingChip({ timing, className }: { timing: NonNullable<ReturnType<typeof timingOf>>; className?: string }) {
   const late = timing.kind === 'late'
-  const Icon = late ? CircleAlert : Clock
   const text = late ? `Late by ${timing.minutes} min` : timing.minutes === 0 ? 'Due now' : `Arriving in ${timing.minutes} min`
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap',
-        late ? 'border-destructive/30 bg-destructive/10 text-destructive' : 'border-primary/30 bg-primary/10 text-primary',
-        className,
-      )}
-    >
-      <Icon className="size-3" aria-hidden="true" />
+    <StatusChip tone={late ? 'attention' : 'waiting'} className={className}>
       {text}
-    </span>
+    </StatusChip>
   )
 }

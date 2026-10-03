@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 
 import { Label } from '@/components/ui/label'
+import { FAST, collapseMotion } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 interface FormFieldProps {
@@ -17,7 +18,7 @@ interface FormFieldProps {
 
 export function FormField({ id, label, error, hint, aside, className, children }: FormFieldProps) {
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn('space-y-1.5', className)}>
       <div className="flex items-baseline justify-between gap-3">
         <Label id={`${id}-label`} htmlFor={id}>
           {label}
@@ -35,10 +36,10 @@ export function FormField({ id, label, error, hint, aside, className, children }
           <motion.p
             key={error}
             id={`${id}-error`}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={FAST}
             className="text-[13px] text-destructive"
           >
             {error}
@@ -53,18 +54,11 @@ export function FormAlert({ id, message }: { id?: string; message: string | null
   return (
     <AnimatePresence initial={false}>
       {message && (
-        <motion.div
-          key="form-alert"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="overflow-hidden"
-        >
+        <motion.div key="form-alert" {...collapseMotion} className="overflow-hidden">
           <p
             id={id}
             role="alert"
-            className="rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-3 text-sm text-foreground"
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm text-foreground"
           >
             {message}
           </p>

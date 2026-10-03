@@ -14,10 +14,10 @@ function Toaster(props: ToasterProps) {
       toastOptions={{
         classNames: {
           toast:
-            'group rounded-xl! border! border-border-strong! bg-popover! text-popover-foreground! shadow-lifted! font-sans!',
+            'group rounded-md! border! border-border-strong! bg-popover! text-popover-foreground! shadow-none! font-sans!',
           title: 'text-sm! font-medium!',
           description: 'text-[13px]! text-muted-foreground!',
-          icon: '[&_svg]:text-primary!',
+          icon: '[&_svg]:text-foreground!',
           error: '[&_[data-icon]_svg]:text-destructive!',
         },
       }}

@@ -19,13 +19,13 @@ function SheetContent({
     <SheetPrimitive.Portal>
       <SheetPrimitive.Overlay
         data-slot="sheet-overlay"
-        className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px] duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
+        className="fixed inset-0 z-50 bg-black/60 duration-150 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
       />
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          'fixed inset-y-0 z-50 flex h-full w-[min(19rem,85vw)] flex-col bg-background shadow-lifted outline-none',
-          'duration-200 ease-out data-[state=closed]:animate-out data-[state=open]:animate-in',
+          'fixed inset-y-0 z-50 flex h-full w-[min(17rem,85vw)] flex-col bg-background outline-none',
+          'duration-150 ease-out data-[state=closed]:animate-out data-[state=open]:animate-in',
           side === 'left' &&
             'left-0 border-r border-border data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left',
           side === 'right' &&
@@ -35,7 +35,7 @@ function SheetContent({
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="absolute top-4 right-3 grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+        <SheetPrimitive.Close className="touch-target-square absolute top-3 right-3 grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
           <X className="size-4" aria-hidden="true" />
           <span className="sr-only">{closeLabel}</span>
         </SheetPrimitive.Close>
@@ -45,21 +45,21 @@ function SheetContent({
 }
 
 function SheetHeader({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div data-slot="sheet-header" className={cn('flex flex-col gap-1.5 border-b border-border p-6 pr-14', className)} {...props} />
+  return <div data-slot="sheet-header" className={cn('flex flex-col gap-1 border-b border-border p-5 pr-14', className)} {...props} />
 }
 
 function SheetFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="sheet-footer"
-      className={cn('mt-auto flex flex-col-reverse gap-2 border-t border-border p-6 sm:flex-row sm:justify-end', className)}
+      className={cn('mt-auto flex flex-col-reverse gap-2 border-t border-border p-5 sm:flex-row sm:justify-end', className)}
       {...props}
     />
   )
 }
 
 function SheetTitle({ className, ...props }: React.ComponentProps<typeof SheetPrimitive.Title>) {
-  return <SheetPrimitive.Title data-slot="sheet-title" className={cn('font-serif text-2xl font-normal', className)} {...props} />
+  return <SheetPrimitive.Title data-slot="sheet-title" className={cn('text-base leading-tight font-semibold', className)} {...props} />
 }
 
 function SheetDescription({ className, ...props }: React.ComponentProps<typeof SheetPrimitive.Description>) {
