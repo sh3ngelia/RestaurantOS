@@ -1,4 +1,4 @@
-import type { MenuCategory, MenuCategoryInput, MenuItem, MenuItemInput, PreparationStation } from '@/api/menu'
+import type { Allergen, MenuCategory, MenuCategoryInput, MenuItem, MenuItemInput, PreparationStation } from '@/api/menu'
 import { parsePrice, priceInputValue } from '@/lib/format'
 
 /*
@@ -81,8 +81,8 @@ export function validateItem(values: ItemFormValues): Errors<ItemField> {
   return errors
 }
 
-/** Call only after validateItem() passes. */
-export function toItemInput(values: ItemFormValues): MenuItemInput {
+/** Call only after validateItem() passes. Allergens live outside the string-valued form state. */
+export function toItemInput(values: ItemFormValues, allergens: readonly Allergen[]): MenuItemInput {
   return {
     name: values.name.trim(),
     description: values.description.trim() || null,
@@ -90,6 +90,7 @@ export function toItemInput(values: ItemFormValues): MenuItemInput {
     categoryId: values.categoryId,
     preparationStation: values.preparationStation,
     preparationTimeInMinutes: Number(values.preparationTimeInMinutes.trim()),
+    allergens: [...allergens],
   }
 }
 

@@ -9,6 +9,9 @@ import type { DiningTable } from '@/api/tables'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
+import { useSession } from '@/features/auth/useAuth'
+import { useOpenOrders } from '@/features/orders/hooks'
+import { getOrderPermissions } from '@/features/orders/permissions'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { formatTime } from '@/lib/dates'
 import { OccupancyBar } from './components/OccupancyBar'
@@ -46,6 +49,13 @@ function deleteDescription(table: DiningTable) {
 export function TablesPage() {
   useDocumentTitle('Tables')
   const permissions = useTablePermissions()
+  // Orders are Waiter + Manager on the API; a Host would get a 403, so don't ask.
+  const { canTakeOrders } = getOrderPermissions(useSession().role)
+  const openOrders = useOpenOrders({ enabled: canTakeOrders })
+  const orderByTable = useMemo(
+    () => new Map((openOrders.data ?? []).filter((o) => o.tableId).map((o) => [o.tableId as string, o])),
+    [openOrders.data],
+  )
   const tablesQuery = useTables()
   const [searchParams] = useSearchParams()
   const filterId = parseStatusFilter(searchParams.get('status'))
@@ -189,6 +199,8 @@ export function TablesPage() {
                       <TableCard
                         table={table}
                         permissions={permissions}
+                        order={orderByTable.get(table.id)}
+                        canTakeOrders={canTakeOrders}
                         onEdit={(t) => setFormState({ open: true, table: t })}
                         onDelete={(t) => {
                           setPendingDelete(t)

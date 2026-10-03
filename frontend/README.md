@@ -1,6 +1,6 @@
 # RestaurantOS — Web client
 
-The staff-facing web app for RestaurantOS: sign-in, a role-aware app shell, a dashboard for each station of the restaurant, and the **Tables**, **Reservations** and **Menu** modules. It talks to the ASP.NET Core API in this repository.
+The staff-facing web app for RestaurantOS: sign-in, a role-aware app shell, a dashboard for each station of the restaurant, and the **Tables**, **Reservations**, **Orders**, **Menu** and **Staff** modules. It talks to the ASP.NET Core API in this repository.
 
 **Stack:** React 19 · TypeScript (strict) · Vite · Tailwind CSS v4 · shadcn/ui (Radix) · React Router · TanStack Query · Motion · lucide-react · sonner
 
@@ -44,7 +44,9 @@ src/
 │   ├── errors.ts         ApiError, ProblemDetails → message, validation errors → form fields
 │   ├── auth.ts           /api/auth endpoints, query keys, claim helpers
 │   ├── menu.ts           /api/menu endpoints, types, query keys
+│   ├── orders.ts         /api/orders endpoints, order and item types, query keys
 │   ├── reservations.ts   /api/reservations endpoints, types, query keys (times normalised to UTC)
+│   ├── staff.ts          /api/staff endpoints, types, query keys
 │   └── tables.ts         /api/tables endpoints, types, query keys
 ├── config/
 │   ├── roles.ts          Role union (mirrors the UserRole enum) + per-role copy
@@ -55,10 +57,14 @@ src/
 │   ├── dashboard/        Greeting, placeholder stats, module cards
 │   ├── tables/           Tables module: floor page, status model, hooks, validation, permissions
 │   │   └── components/   Table card + quick actions, SVG table shape, filters, occupancy bar, form
+│   ├── orders/           Orders module: overview, order screen, domain rules, hooks, permissions
+│   │   └── components/   Table cards, menu browser, quick-add sheet, ticket, status chips
 │   ├── reservations/     Reservations module: day page, status + timing model, hooks, validation, summaries
 │   │   └── components/   Day nav, hour timeline, row + actions, new/edit/reschedule dialogs, pickers
 │   ├── menu/             Menu module: page, query/mutation hooks, validation, permissions
 │   │   └── components/   Category nav and sections, item card, inline price editor, forms
+│   ├── staff/            Staff module: team page, password + guard rules, hooks
+│   │   └── components/   Staff row, password field, add / edit / role / reset dialogs
 │   ├── modules/          ModuleRoute (role guard from config) + "coming soon" preview page
 │   └── errors/           404
 ├── layouts/              AppShell, sidebar (desktop), drawer (mobile), top bar, user menu
@@ -66,7 +72,7 @@ src/
 │   ├── ui/               shadcn/ui primitives (button, input, select, dialog, alert-dialog, popover, sheet, switch, …)
 │   ├── theme/            Theme provider (dark by default, persisted)
 │   └── …                 Logo, RoleBadge, UserAvatar, ThemeToggle, FullScreenLoader,
-│                         FormField, ConfirmDialog, EmptyState
+│                         FormField, ConfirmDialog, EmptyState, AllergenBadges, QuantityStepper
 ├── hooks/                useDocumentTitle, useFormState (client + server validation), useNow
 ├── lib/                  cn() and name helpers, price and date/time helpers, form and DOM helpers
 ├── router.tsx            Route tree
@@ -78,7 +84,7 @@ src/
 
 1. Add an entry to `MODULES` in [src/config/modules.ts](src/config/modules.ts) with its roles, icon and copy.
 2. That is enough for it to show up in the sidebar and on the dashboard for those roles, with `/m/<id>` guarded by role.
-3. When the real screen ships, set `status: 'available'` and add a static route in [src/router.tsx](src/router.tsx) wrapped in `<ModuleRoute id="…">`. The static route outranks the `/m/:moduleId` preview, and `ModuleRoute` reuses the roles from the config, so the route guard and the navigation can't drift apart. The Tables, Reservations and Menu modules are worked examples.
+3. When the real screen ships, set `status: 'available'` and add a static route in [src/router.tsx](src/router.tsx) wrapped in `<ModuleRoute id="…">`. The static route outranks the `/m/:moduleId` preview, and `ModuleRoute` reuses the roles from the config, so the route guard and the navigation can't drift apart. The Tables, Reservations, Orders, Menu and Staff modules are worked examples.
 
 ---
 
@@ -99,6 +105,7 @@ The host's floor view. The API allows Host and Manager, so the module config, ro
 | Role    | Can do                                                                  |
 | ------- | ----------------------------------------------------------------------- |
 | Host    | See the floor; seat, hold and clear tables, and seat booked parties     |
+| Waiter  | Not on this page; may read tables and clear them from Orders            |
 | Manager | Everything a host can, plus add, edit (number, seats) and delete tables |
 
 **The floor.**
@@ -209,6 +216,115 @@ The host's book. The API allows Host and Manager, so the module config, route gu
 
 ---
 
+## Orders module (`/m/orders`)
+
+The waiter's screen. The API allows Waiter and Manager on the floor endpoints, so the module config, route guard and sidebar are limited to those two roles.
+
+| Role    | Can do                                                                                     |
+| ------- | ------------------------------------------------------------------------------------------ |
+| Waiter  | Start orders, add items, send, fire courses, serve, cancel items, close or cancel the order |
+| Manager | Everything a waiter can, plus **Start** and **Mark ready** on lines, so the whole flow can be tested before the Kitchen Display exists |
+
+### Overview (`/m/orders`)
+
+- **The grid:** a card for every seated table. A table with an open order shows the order number, line count, total, how long it has been open, and a status summary such as "1 ready · 1 preparing · 2 held". A seated table without an order offers **Start order**.
+- **Ready food stands out:** a copper "At the pass" strip at the top lists every table with food ready, and those cards turn copper with a glow. The ready count is a solid copper chip with a live dot, the loudest thing on the page.
+- **Floor access:** Waiters and Managers can read the floor (`GET /api/tables`), so every occupied table appears. If a role ever lost that access (403), the overview stops polling it and quietly falls back to open orders.
+- **Clear table:** a seated table without an order also offers **Clear table** (`POST /api/tables/{id}/free`), which Waiters may call. It is not offered on tables with an open order, so a ticket can't be orphaned. Waiters are never shown Seat or Hold; the API refuses those for them.
+
+### Order screen (`/m/orders/:orderId`)
+
+Two panes on tablets and desktops (menu left, ticket right). On phones a Menu / Ticket switcher shows one pane at a time; the Ticket tab carries the total and a "1 ready" or "3 new" badge.
+
+**Menu pane.**
+- **Browsing:** category tabs and accent-insensitive search.
+- **Item cards** show price, station icon and allergens. 86'd items stay visible but disabled, with the stamp.
+- **Quick-add sheet:** tapping an item opens a sheet with a quantity stepper (1-50), course (Starter / Main / Dessert), an optional seat and notes (at most 500 characters).
+  - **Default course:** taken from the category name, so "Starter(s)" gives Starter, "Dessert(s)" gives Dessert, and anything else Main.
+  - **Bar items** still pick a course, but the sheet notes that drinks go out as soon as you send.
+  - **Fresh every time:** the form is keyed per pick, so a quick second tap never inherits the previous item's quantity or course.
+
+**Ticket pane.**
+- **Grouping:** a **Drinks** section at the top holds every bar item, whatever its course, since the bar fires drinks as soon as they're sent. Kitchen items follow, grouped by course (Starters / Mains / Desserts).
+- **Lines:** each shows quantity, name, seat, notes, allergens in a red warning style, line price and a status chip (New, Held, Sent, Preparing, Ready, Served, Cancelled).
+- **Status chips come from the API.** Each chip shows the item's `status` from the latest response exactly. The client never works out Held, Sent or anything else from course or `currentCourse`.
+- **Actions per line:**
+
+| Status                     | Actions                                                                 |
+| -------------------------- | ----------------------------------------------------------------------- |
+| New (Draft)                | Quantity stepper, Remove                                                |
+| Held, Sent, Preparing      | Cancel item, behind a confirmation                                      |
+| Ready                      | **Serve**, and the line is highlighted                                  |
+| Sent, Preparing (Manager)  | Start (Sent only), Mark ready                                           |
+
+- **Footer:** the total in EUR, **Send N** (enabled only when there are new lines), and **Fire mains** / **Fire desserts** while held items exist. The label comes from the next held course.
+- **Header:** **Close order** stays disabled until the API would accept it, with a tooltip giving the reason ("2 items are still to be served or cancelled."). **Cancel order** appears only while nothing has been sent.
+
+**Rules mirrored from the domain.** [rules.ts](src/features/orders/rules.ts) decides which buttons to offer from the statuses the API reports. It never predicts new statuses:
+- **Fire next:** the button appears while any item is Held and is labelled after the lowest held course.
+- **Close:** only when every line is served or cancelled and at least one was served.
+- **Cancel order:** only while every line is new or cancelled.
+
+**Updates.**
+- **Optimistic:** quantity and remove on new lines update at once, because they don't change any status, and roll back if refused.
+- **Server-confirmed:** send, fire, serve, start, mark ready and cancel item wait for the server. The pressed button shows a spinner, the line's other actions pause, and Send reads "Sending…" until the full order comes back and replaces the ticket.
+- **Errors:** a refused action's 400 `detail` appears as a toast.
+- **Ending the order:** closing and cancelling also wait for the server, then return to the overview.
+
+**Staying current.** Open orders and the open ticket refetch every 10 seconds, until SignalR arrives. A closed or cancelled order stops polling.
+
+### Elsewhere in the app
+
+- **Tables page:** for roles that may read orders, a seated table's card shows its order status, and the card's actions start with **Open order** or **Start order**.
+- **Dashboard:** "Open tickets" shows the number of open orders for Waiter and Manager, highlights how many tables have food ready, and links to Orders.
+
+### Backend gaps
+
+One permission mismatch remains in the current API. The page degrades gracefully and picks up the change automatically once the API allows it:
+
+- **Hosts can't read orders.** `GET /api/orders` allows Waiter and Manager only, so the Tables page shows order summaries only to the Manager. It skips the request for Host rather than taking a 403.
+
+---
+
+## Staff module (`/m/staff`)
+
+Team accounts, for the Manager only. The API's `/api/staff` is Manager-only, so the module config, route guard and sidebar match.
+
+**The list.**
+- **Header:** totals ("11 people · 10 active · 1 inactive").
+- **Role chips:** All plus one per role, each with its count. The choice is kept in `?role=`.
+- **Status filter:** All / Active / Inactive, kept in `?status=`. Both filters combine with the role chips.
+- **Search:** by name or email, ignoring case and accents.
+- **Grouping:** members are grouped under role headings (Hosts, Waiters, Kitchen, Bar, Managers, Accountants), active members first.
+- **Each row:** initials avatar, full name, email, joined date, the shared `RoleBadge` and an Active / Inactive chip. Inactive members are muted with a dashed outline.
+
+**You.** Your own row carries a "You" badge. Your id comes from the JWT's `sub` claim (decoded for display only; the server still decides). On that row, Change role and Deactivate are soft-disabled: they stay focusable, and a tooltip explains why ("You can't change your own role."). The same treatment covers deactivating or demoting the only active manager. These guards mirror the API's 409s; if the server still refuses (for example, when two managers act at once), its `detail` is shown.
+
+**Actions.**
+
+| Action          | How                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------- |
+| Add staff member | Dialog with first and last name, work email, password and role                          |
+| Edit profile    | Dialog with name and email                                                                |
+| Change role     | Dialog listing the six roles with their station; optimistic, and rolled back on refusal  |
+| Deactivate / Activate | Confirmation dialog; optimistic, and rolled back on refusal                        |
+| Reset password  | Dialog with a new password; the API answers 204, so a toast confirms                      |
+
+**Passwords.** [rules.ts](src/features/staff/rules.ts) mirrors the server's rules (at least 8 characters, at least one letter and one digit) and drives a live checklist under the field.
+- **Show / hide:** a toggle reveals what you typed.
+- **Generate:** creates a 14-character password from `crypto.getRandomValues`, using rejection sampling so every character is equally likely, and a Fisher-Yates shuffle. It always contains a letter and a digit, skips easily confused characters (0/O, 1/l/I), and reveals itself so it can be read out.
+- **Copy:** puts the password on the clipboard.
+
+**Errors.**
+- **400 validation:** errors keyed `FirstName`, `LastName`, `Email`, `Password`, `NewPassword` or `Role` appear under their fields.
+- **409 in a form** ("A staff member with email '...' already exists.") appears as a form-level alert.
+- **409 in the role dialog** stays inside the dialog.
+- **409 for a quick action** (deactivate, activate) appears as a toast with the server's sentence.
+
+**Client limits** follow the `User` columns: first and last name at most 100 characters, email at most 256.
+
+---
+
 ## Menu module (`/m/menu`)
 
 The first live module. It covers categories and items from `/api/menu`, for Manager, Kitchen, Bar and Waiter.
@@ -223,7 +339,7 @@ Permissions live in [src/features/menu/permissions.ts](src/features/menu/permiss
 
 **Layout.** A category list, shown as sticky pill tabs on mobile and a sticky vertical list on desktop, with an "All" option and item counts. The chosen category is kept in `?category=`, so it survives a reload and works with the back button. Items appear as cards grouped under category headings. Search matches on name, ignores case and accents ("creme" finds "Crème brûlée"), focuses with `/` and clears with `Esc`.
 
-**Item cards** show the name, description, price in EUR, station (Kitchen or Bar), prep time and availability. An unavailable item is **86'd**: its name is struck through in copper, the card turns muted and dashed, and it gets an "86'd" stamp, like the 404 page.
+**Item cards** show the name, description, price in EUR, station (Kitchen or Bar), prep time, allergens and availability. An unavailable item is **86'd**: its name is struck through in copper, the card turns muted and dashed, and it gets an "86'd" stamp, like the 404 page.
 
 **Server state (TanStack Query).**
 - **Keys** are hierarchical: `['menu', 'categories']` and `['menu', 'items', 'list' | 'detail', …]`. One invalidation can therefore target all items, or the whole menu.
@@ -235,6 +351,8 @@ Permissions live in [src/features/menu/permissions.ts](src/features/menu/permiss
 - **400 validation:** the API returns `errors` keyed by PascalCase property names (`Name`, `Price`, `CategoryId`, `PreparationTimeInMinutes`, …). `mapValidationErrors` in [api/errors.ts](src/api/errors.ts) matches them to form fields case-insensitively, also accepting JSON paths like `$.price`. Each message appears under its field. Keys that don't match a field become a form-level message.
 - **409 conflict** (for example "Menu item 'Khinkali' already exists."): the `detail` is shown as a form-level alert inside a form, or as a toast for quick actions.
 - **404:** a toast says the record is already gone, and the menu refreshes.
+
+**Allergens.** The item form has a picker for the 14 EU allergens (Gluten, Crustaceans, Eggs, Fish, Peanuts, Soybeans, Milk, Nuts, Celery, Mustard, Sesame, Sulphites, Lupin, Molluscs). Each allergen is a toggle with `aria-pressed`, and they are sent as `allergens: string[]`. The selection is always kept in the API enum's order, so badges read the same everywhere. Cards show them as badges, and the same badges appear in a warning style on order tickets.
 
 **Validation.** [validation.ts](src/features/menu/validation.ts) mirrors the FluentValidation rules and EF column limits:
 - item name required, at most 150 characters

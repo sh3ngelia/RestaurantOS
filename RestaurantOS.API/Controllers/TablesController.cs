@@ -7,9 +7,11 @@ namespace RestaurantOS.API.Controllers;
 
 [ApiController]
 [Route("api/tables")]
-[Authorize(Roles = $"{nameof(UserRole.Host)},{nameof(UserRole.Manager)}")] // მიმღები + მენეჯერი
+[Authorize(Roles = $"{nameof(UserRole.Host)},{nameof(UserRole.Waiter)},{nameof(UserRole.Manager)}")]
 public class TablesController : ControllerBase
 {
+    private const string HostRoles = $"{nameof(UserRole.Host)},{nameof(UserRole.Manager)}";
+
     private readonly ITableService _tableService;
 
     public TablesController(ITableService tableService)
@@ -32,10 +34,12 @@ public class TablesController : ControllerBase
         Ok(await _tableService.UpdateAsync(id, request, cancellationToken));
 
     [HttpPost("{id:guid}/occupy")]
+    [Authorize(Roles = HostRoles)]
     public async Task<ActionResult<TableResponse>> Occupy(Guid id, CancellationToken cancellationToken) =>
         Ok(await _tableService.OccupyAsync(id, cancellationToken));
 
     [HttpPost("{id:guid}/reserve")]
+    [Authorize(Roles = HostRoles)]
     public async Task<ActionResult<TableResponse>> Reserve(Guid id, CancellationToken cancellationToken) =>
         Ok(await _tableService.ReserveAsync(id, cancellationToken));
 

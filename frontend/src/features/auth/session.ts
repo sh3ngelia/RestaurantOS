@@ -47,19 +47,28 @@ export function clearSession() {
   }
 }
 
-/** Returns the JWT `exp` claim in milliseconds, or null if it can't be read. */
-export function getTokenExpiry(token: string): number | null {
+/** The JWT's payload claims, or null if the token can't be read. Not verified: display use only. */
+function decodePayload(token: string): Record<string, unknown> | null {
   try {
     const payload = token.split('.')[1]
     if (!payload) return null
     const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
-    const json = JSON.parse(atob(base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '='))) as {
-      exp?: unknown
-    }
-    return typeof json.exp === 'number' ? json.exp * 1000 : null
+    return JSON.parse(atob(base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '='))) as Record<string, unknown>
   } catch {
     return null
   }
+}
+
+/** Returns the JWT `exp` claim in milliseconds, or null if it can't be read. */
+export function getTokenExpiry(token: string): number | null {
+  const exp = decodePayload(token)?.exp
+  return typeof exp === 'number' ? exp * 1000 : null
+}
+
+/** The signed-in user's id (the JWT `sub` claim), for marking "You" in lists. */
+export function getTokenSubject(token: string): string | null {
+  const sub = decodePayload(token)?.sub
+  return typeof sub === 'string' && sub ? sub : null
 }
 
 export function isTokenExpired(token: string, now = Date.now()) {

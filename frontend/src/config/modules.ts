@@ -76,7 +76,7 @@ export const MODULES: readonly ModuleDefinition[] = [
     icon: ClipboardList,
     group: 'Service',
     roles: ['Waiter', 'Manager'],
-    status: 'coming-soon',
+    status: 'available',
   },
   {
     id: 'menu',
@@ -151,7 +151,7 @@ export const MODULES: readonly ModuleDefinition[] = [
   {
     id: 'staff',
     title: 'Staff',
-    description: 'Team accounts, roles and shift schedules.',
+    description: 'Team accounts, roles and access in one place.',
     highlights: [
       'Invite team members with a role',
       'Shift schedules and clock-in history',
@@ -160,7 +160,7 @@ export const MODULES: readonly ModuleDefinition[] = [
     icon: Users,
     group: 'Business',
     roles: ['Manager'],
-    status: 'coming-soon',
+    status: 'available',
   },
 ]
 

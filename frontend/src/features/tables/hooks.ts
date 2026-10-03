@@ -16,9 +16,15 @@ export function useTables({ enabled = true }: { enabled?: boolean } = {}) {
     enabled,
     // Status is computed server-side from the clock (tables turn Reserved as bookings
     // approach) and other hosts seat guests, so poll to stay current without a reload.
-    refetchInterval: 60_000,
-    refetchOnWindowFocus: true,
+    // A 403 won't change by itself, so stop polling a role that can't read the floor.
+    refetchInterval: (query) => (isForbidden(query.state.error) ? false : 60_000),
+    refetchOnWindowFocus: (query) => !isForbidden(query.state.error),
   })
+}
+
+/** True for a 403: the signed-in role may not read this resource. */
+export function isForbidden(error: unknown) {
+  return error instanceof ApiError && error.status === 403
 }
 
 // ── Errors ───────────────────────────────────────────────────────────────────
@@ -92,6 +98,27 @@ export function useQuickAction() {
         void queryClient.invalidateQueries({ queryKey: tableKeys.list() })
       }
     },
+  })
+}
+
+/** Clear a table by id (POST free): optimistic, rolled back if refused. Used outside the floor view. */
+export function useClearTable() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: STATUS_MUTATION_KEY,
+    mutationFn: (tableId: string) => tablesApi.changeStatus(tableId, 'free'),
+    onMutate: async (tableId) => {
+      await queryClient.cancelQueries({ queryKey: tableKeys.list() })
+      const previous = queryClient.getQueryData<DiningTable[]>(tableKeys.list())
+      queryClient.setQueryData<DiningTable[]>(tableKeys.list(), (tables) =>
+        patchTable(tables, tableId, (t) => ({ ...t, status: 'Available', isHeld: false })),
+      )
+      return { previous }
+    },
+    onError: (_error, _tableId, context) => {
+      if (context?.previous) queryClient.setQueryData(tableKeys.list(), context.previous)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: tableKeys.list() }),
   })
 }
 

@@ -14,8 +14,12 @@ import { useDayReservations } from '@/features/reservations/hooks'
 import { canUseReservations } from '@/features/reservations/permissions'
 import { summarizeDay } from '@/features/reservations/summary'
 import { todayKey } from '@/lib/dates'
+import { cn } from '@/lib/utils'
+import { useOpenOrders } from '@/features/orders/hooks'
+import { getOrderPermissions } from '@/features/orders/permissions'
+import { summarizeOrder } from '@/features/orders/rules'
 
-type LiveSource = 'tablesSeated' | 'coversTonight'
+type LiveSource = 'tablesSeated' | 'coversTonight' | 'openTickets'
 
 interface StatDefinition {
   label: string
@@ -29,7 +33,7 @@ interface StatDefinition {
 const STATS: readonly StatDefinition[] = [
   { label: 'Covers tonight', source: 'Reservations', roles: ['Host', 'Waiter', 'Manager'], live: 'coversTonight' },
   { label: 'Tables seated', source: 'Tables', roles: ['Host', 'Waiter', 'Manager'], live: 'tablesSeated' },
-  { label: 'Open tickets', source: 'Orders', roles: ['Waiter', 'Kitchen', 'Bar', 'Manager'] },
+  { label: 'Open tickets', source: 'Orders', roles: ['Waiter', 'Kitchen', 'Bar', 'Manager'], live: 'openTickets' },
   { label: 'Avg. ticket time', source: 'Kitchen Display', roles: ['Kitchen', 'Bar', 'Manager'] },
   { label: "Items 86'd", source: 'Menu', roles: ['Kitchen', 'Bar'] },
   { label: 'Checks settled', source: 'Payments', roles: ['Waiter', 'Accountant'] },
@@ -40,6 +44,7 @@ const STATS: readonly StatDefinition[] = [
 const LIVE_ACCESS: Record<LiveSource, (role: Role) => boolean> = {
   tablesSeated: (role) => getTablePermissions(role).canUseFloor,
   coversTonight: canUseReservations,
+  openTickets: (role) => getOrderPermissions(role).canTakeOrders,
 }
 
 const MAX_STATS = 4
@@ -65,6 +70,8 @@ export function StatsRow({ role }: { role: Role }) {
               <TablesSeatedStat label={stat.label} />
             ) : stat.live === 'coversTonight' && LIVE_ACCESS.coversTonight(role) ? (
               <CoversTonightStat label={stat.label} />
+            ) : stat.live === 'openTickets' && LIVE_ACCESS.openTickets(role) ? (
+              <OpenTicketsStat label={stat.label} />
             ) : (
               <PlaceholderStat stat={stat} />
             )}
@@ -193,6 +200,75 @@ function CoversTonightStat({ label }: { label: string }) {
       className="group block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <Card className="relative h-full overflow-hidden p-4 transition-[border-color] duration-200 group-hover:border-primary/30 sm:p-5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[13px] text-muted-foreground">{label}</p>
+          <ArrowUpRight
+            className="size-3.5 text-muted-foreground transition-[color,transform] duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary"
+            aria-hidden="true"
+          />
+        </div>
+        {body}
+      </Card>
+    </Link>
+  )
+}
+
+function OpenTicketsStat({ label }: { label: string }) {
+  const orders = useOpenOrders()
+  const list = orders.data ?? []
+  const readyTables = list.filter((o) => summarizeOrder(o).ready > 0).length
+  const inKitchen = list.reduce((sum, o) => {
+    const s = summarizeOrder(o)
+    return sum + s.sent + s.preparing
+  }, 0)
+
+  let body: ReactNode
+  if (orders.isPending) {
+    body = (
+      <>
+        <Skeleton className="mt-3 h-7 w-16 sm:w-20" />
+        <Skeleton className="mt-4 h-5 w-24 rounded-full" />
+      </>
+    )
+  } else if (orders.isError) {
+    body = <p className="mt-3 text-sm text-muted-foreground">Couldn’t load orders.</p>
+  } else {
+    body = (
+      <>
+        <p className="mt-2 font-serif text-3xl leading-none font-light tabular-nums">{list.length}</p>
+        <p className="mt-3.5 min-h-5">
+          {readyTables > 0 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+              <span className="size-1.5 rounded-full bg-primary-foreground" aria-hidden="true" />
+              {readyTables} {readyTables === 1 ? 'table' : 'tables'} ready
+            </span>
+          ) : (
+            <span className="font-mono text-[10.5px] tracking-wide text-muted-foreground uppercase">
+              {inKitchen} {inKitchen === 1 ? 'item' : 'items'} in the works
+            </span>
+          )}
+        </p>
+      </>
+    )
+  }
+
+  return (
+    <Link
+      to="/m/orders"
+      aria-busy={orders.isPending}
+      aria-label={
+        orders.isSuccess
+          ? `${label}: ${list.length} open, ${readyTables} with food ready. Open orders.`
+          : `${label}. Open orders.`
+      }
+      className="group block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
+      <Card
+        className={cn(
+          'relative h-full overflow-hidden p-4 transition-[border-color] duration-200 group-hover:border-primary/30 sm:p-5',
+          readyTables > 0 && 'border-primary/50',
+        )}
+      >
         <div className="flex items-center justify-between gap-2">
           <p className="text-[13px] text-muted-foreground">{label}</p>
           <ArrowUpRight

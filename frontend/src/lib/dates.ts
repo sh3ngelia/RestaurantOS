@@ -81,3 +81,10 @@ export function relativeDayLabel(key: string, today = todayKey()): string | null
   if (key === addDays(today, -1)) return 'Yesterday'
   return null
 }
+
+/** Time since an instant, as "8 min" or "1 h 05". */
+export function formatElapsed(sinceIso: string, now: Date): string {
+  const minutes = Math.max(0, Math.floor((now.getTime() - new Date(sinceIso).getTime()) / 60_000))
+  if (minutes < 60) return `${minutes} min`
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
+}

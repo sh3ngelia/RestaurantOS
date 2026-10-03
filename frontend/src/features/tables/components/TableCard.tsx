@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CalendarClock, Ellipsis, Lock, Pencil, Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
 
+import type { Order } from '@/api/orders'
 import type { DiningTable, TableNextReservation } from '@/api/tables'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -16,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { formatTime } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import { notifyTableError, useQuickAction } from '../hooks'
-import type { TablePermissions } from '../permissions'
+import { canRunQuickAction, type TablePermissions } from '../permissions'
 import {
   ACTIONS_BY_STATE,
   QUICK_ACTIONS,
@@ -26,7 +27,9 @@ import {
   type FloorState,
   type QuickAction,
 } from '../status'
+import { OrderStatusLine } from '@/features/orders/components/OrderSummary'
 import { StatusBadge } from './StatusBadge'
+import { TableOrderLink } from './TableOrderLink'
 import { TableShape } from './TableShape'
 
 interface TableCardProps {
@@ -34,6 +37,10 @@ interface TableCardProps {
   permissions: TablePermissions
   onEdit: (table: DiningTable) => void
   onDelete: (table: DiningTable) => void
+  /** The table's open order, when the signed-in role may read orders. */
+  order?: Order
+  /** The role may take orders, so seated tables offer "Start order". */
+  canTakeOrders?: boolean
 }
 
 const bookingTime = (next: TableNextReservation) => formatTime(new Date(next.reservationTime))
@@ -54,12 +61,12 @@ function describe(table: DiningTable, state: FloorState, seats: string) {
   return `${parts.join(', ')}. Show actions`
 }
 
-export function TableCard({ table, permissions, onEdit, onDelete }: TableCardProps) {
+export function TableCard({ table, permissions, onEdit, onDelete, order, canTakeOrders = false }: TableCardProps) {
   const [open, setOpen] = useState(false)
   const [walkInOpen, setWalkInOpen] = useState(false)
   const quickAction = useQuickAction()
   const state = floorStateOf(table)
-  const actions = ACTIONS_BY_STATE[state]
+  const actions = ACTIONS_BY_STATE[state].filter((action) => canRunQuickAction(action, permissions))
   const next = table.nextReservation
   const seats = `${table.capacity} ${table.capacity === 1 ? 'seat' : 'seats'}`
 
@@ -117,6 +124,7 @@ export function TableCard({ table, permissions, onEdit, onDelete }: TableCardPro
 
             <div className={cn('mt-auto space-y-1.5', permissions.canManage && 'pr-10')}>
               <TableNote table={table} state={state} />
+              {order && <OrderStatusLine order={order} className="pb-0.5" />}
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Users className="size-4" aria-hidden="true" />
                 {seats}
@@ -139,6 +147,9 @@ export function TableCard({ table, permissions, onEdit, onDelete }: TableCardPro
             </div>
           )}
           <div className="grid gap-1 border-t border-border pt-2">
+            {(order || (canTakeOrders && state === 'seated')) && (
+              <TableOrderLink table={table} order={order} onNavigate={() => setOpen(false)} />
+            )}
             {actions.map((action, index) => {
               const definition = QUICK_ACTIONS[action]
               const Icon = definition.icon

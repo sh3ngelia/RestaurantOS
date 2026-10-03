@@ -7,6 +7,9 @@ import { NotFoundPage } from '@/features/errors/NotFoundPage'
 import { MenuPage } from '@/features/menu/MenuPage'
 import { ModulePage } from '@/features/modules/ModulePage'
 import { ModuleRoute } from '@/features/modules/ModuleRoute'
+import { StaffPage } from '@/features/staff/StaffPage'
+import { OrderPage } from '@/features/orders/OrderPage'
+import { OrdersPage } from '@/features/orders/OrdersPage'
 import { ReservationsPage } from '@/features/reservations/ReservationsPage'
 import { TablesPage } from '@/features/tables/TablesPage'
 import { AppShell } from '@/layouts/AppShell'
@@ -42,6 +45,30 @@ export const router = createBrowserRouter([
                 element: (
                   <ModuleRoute id="reservations">
                     <ReservationsPage />
+                  </ModuleRoute>
+                ),
+              },
+              {
+                path: 'm/orders',
+                element: (
+                  <ModuleRoute id="orders">
+                    <OrdersPage />
+                  </ModuleRoute>
+                ),
+              },
+              {
+                path: 'm/orders/:orderId',
+                element: (
+                  <ModuleRoute id="orders">
+                    <OrderPage />
+                  </ModuleRoute>
+                ),
+              },
+              {
+                path: 'm/staff',
+                element: (
+                  <ModuleRoute id="staff">
+                    <StaffPage />
                   </ModuleRoute>
                 ),
               },

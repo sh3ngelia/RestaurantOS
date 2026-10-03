@@ -1,10 +1,10 @@
-import { useId, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { RadioGroup } from 'radix-ui'
 import { LoaderCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { ApiError } from '@/api/errors'
-import { PREPARATION_STATIONS, type MenuCategory, type MenuItem } from '@/api/menu'
+import { ALLERGENS, PREPARATION_STATIONS, type Allergen, type MenuCategory, type MenuItem } from '@/api/menu'
 import { FormAlert, FormField } from '@/components/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -67,6 +67,7 @@ function ItemForm({
     validate: validateItem,
   })
   const save = useSaveItem()
+  const [allergens, setAllergens] = useState<Allergen[]>(() => item?.allergens ?? [])
   const { values } = form
   const isEdit = item !== null
 
@@ -80,7 +81,7 @@ function ItemForm({
     }
 
     save.mutate(
-      { id: item?.id, input: toItemInput(values) },
+      { id: item?.id, input: toItemInput(values, allergens) },
       {
         onSuccess: (saved) => {
           toast.success(isEdit ? 'Changes saved' : 'Added to the menu', {
@@ -255,6 +256,8 @@ function ItemForm({
             </div>
           </FormField>
         </div>
+
+        <AllergenPicker value={allergens} onChange={setAllergens} />
       </div>
 
       <SheetFooter>
@@ -267,5 +270,47 @@ function ItemForm({
         </Button>
       </SheetFooter>
     </form>
+  )
+}
+
+/** The 14 EU allergens as toggles; selected ones use the same warning tone as the badges. */
+function AllergenPicker({ value, onChange }: { value: Allergen[]; onChange: (next: Allergen[]) => void }) {
+  const legendId = useId()
+  function toggle(allergen: Allergen) {
+    // Keep the canonical order so the badges read the same everywhere.
+    onChange(value.includes(allergen) ? value.filter((a) => a !== allergen) : ALLERGENS.filter((a) => a === allergen || value.includes(a)))
+  }
+  return (
+    <fieldset aria-labelledby={legendId} className="space-y-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <legend id={legendId} className="text-[13px] leading-none font-medium text-foreground/90">
+          Allergens
+        </legend>
+        <span className="text-xs text-muted-foreground">{value.length ? `${value.length} selected` : 'None declared'}</span>
+      </div>
+      <p className="text-xs text-muted-foreground">Mark every allergen the dish contains. Waiters see them on the ticket.</p>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {ALLERGENS.map((allergen) => {
+          const selected = value.includes(allergen)
+          return (
+            <button
+              key={allergen}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => toggle(allergen)}
+              className={cn(
+                'h-10 rounded-lg border px-3 text-left text-sm outline-none transition-colors duration-150',
+                'focus-visible:ring-2 focus-visible:ring-ring',
+                selected
+                  ? 'border-destructive/40 bg-destructive/10 font-medium text-destructive'
+                  : 'border-input bg-sunken text-muted-foreground hover:border-border-strong hover:text-foreground',
+              )}
+            >
+              {allergen}
+            </button>
+          )
+        })}
+      </div>
+    </fieldset>
   )
 }

@@ -3,6 +3,7 @@ import { Pencil, Timer, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { MenuItem } from '@/api/menu'
+import { AllergenBadges } from '@/components/AllergenBadges'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -66,6 +67,8 @@ export function MenuItemCard({ item, permissions, onEdit, onDelete }: MenuItemCa
         </Badge>
         {off && <EightySixStamp />}
       </div>
+
+      <AllergenBadges allergens={item.allergens} className="mt-2.5" />
 
       {hasFooter && (
         <div className="mt-auto pt-4">

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using RestaurantOS.Application.Common.Interfaces;
+using RestaurantOS.Domain.Common;
 using RestaurantOS.Domain.Entities;
 
 namespace RestaurantOS.Infrastructure.Persistence;
@@ -21,10 +22,20 @@ public class RestaurantDbContext : DbContext, IUnitOfWork
     public DbSet<MenuCategory> MenuCategories => Set<MenuCategory>();
     public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
     public DbSet<Shift> Shifts => Set<Shift>();
-    
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(RestaurantDbContext).Assembly);
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                modelBuilder.Entity(entityType.ClrType)
+                    .Property(nameof(BaseEntity.Id))
+                    .ValueGeneratedNever();
+            }
+        }
     }
 }

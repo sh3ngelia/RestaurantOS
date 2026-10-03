@@ -69,4 +69,19 @@ public class User : BaseEntity
         MarkAsUpdated();
     }
 
+    public void UpdateProfile(string firstName, string lastName, string email)
+    {
+        if (string.IsNullOrWhiteSpace(firstName))
+            throw new DomainException("First name cannot be empty");
+        if (string.IsNullOrWhiteSpace(lastName))
+            throw new DomainException("Last name cannot be empty");
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+            throw new DomainException("Email is not valid");
+
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
+        Email = email.Trim().ToLowerInvariant();
+        MarkAsUpdated();
+    }
+
 }

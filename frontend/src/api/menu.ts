@@ -1,6 +1,25 @@
 import { apiRequest } from './client'
 
 export const PREPARATION_STATIONS = ['Kitchen', 'Bar'] as const
+
+/** The 14 EU allergens (Regulation 1169/2011), in the order the API's Allergen enum declares them. */
+export const ALLERGENS = [
+  'Gluten',
+  'Crustaceans',
+  'Eggs',
+  'Fish',
+  'Peanuts',
+  'Soybeans',
+  'Milk',
+  'Nuts',
+  'Celery',
+  'Mustard',
+  'Sesame',
+  'Sulphites',
+  'Lupin',
+  'Molluscs',
+] as const
+export type Allergen = (typeof ALLERGENS)[number]
 export type PreparationStation = (typeof PREPARATION_STATIONS)[number]
 
 export interface MenuCategory {
@@ -21,6 +40,7 @@ export interface MenuItem {
   preparationStation: PreparationStation
   isAvailable: boolean
   preparationTimeInMinutes: number
+  allergens: Allergen[]
 }
 
 export interface MenuCategoryInput {
@@ -36,9 +56,15 @@ export interface MenuItemInput {
   categoryId: string
   preparationStation: PreparationStation
   preparationTimeInMinutes: number
+  allergens: Allergen[]
 }
 
 const CATEGORIES = '/api/menu/categories'
+
+/** Responses from before allergen support carry no list; treat that as "none declared". */
+function normaliseItem(item: MenuItem): MenuItem {
+  return { ...item, allergens: item.allergens ?? [] }
+}
 const ITEMS = '/api/menu/items'
 
 export const menuApi = {
@@ -50,15 +76,18 @@ export const menuApi = {
     remove: (id: string) => apiRequest<void>(`${CATEGORIES}/${id}`, { method: 'DELETE' }),
   },
   items: {
-    list: (categoryId?: string, signal?: AbortSignal) =>
-      apiRequest<MenuItem[]>(categoryId ? `${ITEMS}?categoryId=${encodeURIComponent(categoryId)}` : ITEMS, { signal }),
-    get: (id: string, signal?: AbortSignal) => apiRequest<MenuItem>(`${ITEMS}/${id}`, { signal }),
-    create: (input: MenuItemInput) => apiRequest<MenuItem>(ITEMS, { method: 'POST', body: input }),
-    update: (id: string, input: MenuItemInput) => apiRequest<MenuItem>(`${ITEMS}/${id}`, { method: 'PUT', body: input }),
-    changePrice: (id: string, newPrice: number) =>
-      apiRequest<MenuItem>(`${ITEMS}/${id}/price`, { method: 'PATCH', body: { newPrice } }),
-    setAvailability: (id: string, isAvailable: boolean) =>
-      apiRequest<MenuItem>(`${ITEMS}/${id}/availability`, { method: 'PATCH', body: { isAvailable } }),
+    list: async (categoryId?: string, signal?: AbortSignal) =>
+      (
+        await apiRequest<MenuItem[]>(categoryId ? `${ITEMS}?categoryId=${encodeURIComponent(categoryId)}` : ITEMS, { signal })
+      ).map(normaliseItem),
+    get: async (id: string, signal?: AbortSignal) => normaliseItem(await apiRequest<MenuItem>(`${ITEMS}/${id}`, { signal })),
+    create: async (input: MenuItemInput) => normaliseItem(await apiRequest<MenuItem>(ITEMS, { method: 'POST', body: input })),
+    update: async (id: string, input: MenuItemInput) =>
+      normaliseItem(await apiRequest<MenuItem>(`${ITEMS}/${id}`, { method: 'PUT', body: input })),
+    changePrice: async (id: string, newPrice: number) =>
+      normaliseItem(await apiRequest<MenuItem>(`${ITEMS}/${id}/price`, { method: 'PATCH', body: { newPrice } })),
+    setAvailability: async (id: string, isAvailable: boolean) =>
+      normaliseItem(await apiRequest<MenuItem>(`${ITEMS}/${id}/availability`, { method: 'PATCH', body: { isAvailable } })),
     remove: (id: string) => apiRequest<void>(`${ITEMS}/${id}`, { method: 'DELETE' }),
   },
 }
