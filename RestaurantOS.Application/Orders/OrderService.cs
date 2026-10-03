@@ -137,7 +137,7 @@ public class OrderService : IOrderService
     private async Task<OrderResponse> ChangeAsync(Guid orderId, Action<Order> change, CancellationToken cancellationToken)
     {
         var order = await GetOrderOrThrowAsync(orderId, cancellationToken);
-        change(order);                                   // Domain ამოწმებს ყველა წესს
+        change(order);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return await ToResponseAsync(order, cancellationToken);
     }

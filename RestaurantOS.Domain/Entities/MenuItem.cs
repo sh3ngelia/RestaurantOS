@@ -5,53 +5,58 @@ namespace RestaurantOS.Domain.Entities;
 
 public class MenuItem : BaseEntity
 {
-    public string Name { get; private set; }
+    public string Name { get; private set; } = string.Empty;
     public string? Description { get; private set; }
     public decimal Price { get; private set; }
     public Guid CategoryId { get; private set; }
-    public MenuCategory Category { get; private set; }
-    public PreparationStation PreparationStation { get; private set; }
+    public MenuCategory Category { get; private set; } = null!;
+    public Guid StationId { get; private set; }
+    public Station Station { get; private set; } = null!;
     public bool IsAvailable { get; private set; }
-    public Allergen Allergens { get; private set; }
     public int PreparationTimeInMinutes { get; private set; }
+    public Allergen Allergens { get; private set; }
 
-    private MenuItem() { }
+    private MenuItem() { } 
+
     public MenuItem(
         string name,
         string? description,
-        decimal price, 
+        decimal price,
         Guid categoryId,
-        PreparationStation preparationStation,
+        Guid stationId,
         int preparationTimeInMinutes,
         Allergen allergens = Allergen.None)
     {
-        Validate(name, price, preparationTimeInMinutes);
+        Validate(name, price, stationId, preparationTimeInMinutes);
+
         Name = name;
         Description = description;
         Price = price;
         CategoryId = categoryId;
-        PreparationStation = preparationStation;
-        IsAvailable = true;
-        Allergens = allergens;
+        StationId = stationId;
         PreparationTimeInMinutes = preparationTimeInMinutes;
+        Allergens = allergens;
+        IsAvailable = true;
     }
 
-    public void Update(string name,
+    public void Update(
+        string name,
         string? description,
         decimal price,
         Guid categoryId,
-        PreparationStation preparationStation,
+        Guid stationId,
         int preparationTimeInMinutes,
         Allergen allergens = Allergen.None)
     {
-        Validate(name, price, preparationTimeInMinutes);
+        Validate(name, price, stationId, preparationTimeInMinutes);
+
         Name = name;
         Description = description;
         Price = price;
         CategoryId = categoryId;
-        PreparationStation = preparationStation;
-        Allergens = allergens;
+        StationId = stationId;
         PreparationTimeInMinutes = preparationTimeInMinutes;
+        Allergens = allergens;
         MarkAsUpdated();
     }
 
@@ -86,11 +91,13 @@ public class MenuItem : BaseEntity
         MarkAsUpdated();
     }
 
-    private static void Validate(string name, decimal price, int preparationTimeInMinutes)
+    private static void Validate(string name, decimal price, Guid stationId, int preparationTimeInMinutes)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new DomainException("Name cannot be empty");
         ValidatePrice(price);
+        if (stationId == Guid.Empty)
+            throw new DomainException("Station is required");
         if (preparationTimeInMinutes <= 0)
             throw new DomainException("Preparation time must be greater than zero");
     }

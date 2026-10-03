@@ -32,6 +32,11 @@ public class MenuItemConfiguration : IEntityTypeConfiguration<MenuItem>
             .HasForeignKey(m => m.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(mi => mi.Station)
+            .WithMany()
+            .HasForeignKey(mi => mi.StationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasQueryFilter(mi => !mi.IsDeleted);
     }
 }

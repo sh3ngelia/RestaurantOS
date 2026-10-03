@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using RestaurantOS.Application.Common.Exceptions;
 using RestaurantOS.Application.Common.Interfaces;
+using RestaurantOS.Domain.Common;
 using RestaurantOS.Domain.Entities;
 
 namespace RestaurantOS.Application.Menu;
@@ -9,6 +10,7 @@ public class MenuItemService : IMenuItemService
 {
     private readonly IMenuItemRepository _itemRepository;
     private readonly IMenuCategoryRepository _categoryRepository;
+    private readonly IStationRepository _stationRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IValidator<CreateMenuItemRequest> _createValidator;
     private readonly IValidator<UpdateMenuItemRequest> _updateValidator;
@@ -17,6 +19,7 @@ public class MenuItemService : IMenuItemService
     public MenuItemService(
         IMenuItemRepository itemRepository,
         IMenuCategoryRepository categoryRepository,
+        IStationRepository stationRepository,
         IUnitOfWork unitOfWork,
         IValidator<CreateMenuItemRequest> createValidator,
         IValidator<UpdateMenuItemRequest> updateValidator,
@@ -24,6 +27,7 @@ public class MenuItemService : IMenuItemService
     {
         _itemRepository = itemRepository;
         _categoryRepository = categoryRepository;
+        _stationRepository = stationRepository;
         _unitOfWork = unitOfWork;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
@@ -51,6 +55,7 @@ public class MenuItemService : IMenuItemService
         await _createValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var category = await GetCategoryOrThrowAsync(request.CategoryId, cancellationToken);
+        var station = await GetActiveStationOrThrowAsync(request.StationId, cancellationToken);
 
         if (await _itemRepository.ExistsByNameAsync(request.Name, cancellationToken: cancellationToken))
             throw new ConflictException($"Menu item '{request.Name.Trim()}' already exists.");
@@ -60,7 +65,7 @@ public class MenuItemService : IMenuItemService
             request.Description,
             request.Price,
             request.CategoryId,
-            request.PreparationStation,
+            request.StationId,
             request.PreparationTimeInMinutes,
             request.Allergens.ToFlags());
 
@@ -68,7 +73,12 @@ public class MenuItemService : IMenuItemService
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return item.ToResponse() with { CategoryName = category.Name };
+        return item.ToResponse() with
+        {
+            CategoryName = category.Name,
+            StationName = station.Name,
+            StationType = station.Type
+        };
     }
 
     public async Task<MenuItemResponse> UpdateAsync(
@@ -80,6 +90,7 @@ public class MenuItemService : IMenuItemService
 
         var item = await GetItemOrThrowAsync(id, cancellationToken);
         var category = await GetCategoryOrThrowAsync(request.CategoryId, cancellationToken);
+        var station = await GetActiveStationOrThrowAsync(request.StationId, cancellationToken);
 
         if (await _itemRepository.ExistsByNameAsync(request.Name, id, cancellationToken))
             throw new ConflictException($"Menu item '{request.Name.Trim()}' already exists.");
@@ -89,13 +100,18 @@ public class MenuItemService : IMenuItemService
             request.Description,
             request.Price,
             request.CategoryId,
-            request.PreparationStation,
+            request.StationId,
             request.PreparationTimeInMinutes,
             request.Allergens.ToFlags());
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return item.ToResponse() with { CategoryName = category.Name };
+        return item.ToResponse() with
+        {
+            CategoryName = category.Name,
+            StationName = station.Name,
+            StationType = station.Type
+        };
     }
 
     public async Task<MenuItemResponse> ChangePriceAsync(
@@ -149,4 +165,15 @@ public class MenuItemService : IMenuItemService
     private async Task<MenuCategory> GetCategoryOrThrowAsync(Guid id, CancellationToken cancellationToken) =>
         await _categoryRepository.GetByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException("Menu category", id);
+
+    private async Task<Station> GetActiveStationOrThrowAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var station = await _stationRepository.GetByIdAsync(id, cancellationToken)
+            ?? throw new NotFoundException("Station", id);
+
+        if (!station.IsActive)
+            throw new DomainException($"Station '{station.Name}' is inactive.");
+
+        return station;
+    }
 }

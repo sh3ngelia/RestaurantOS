@@ -21,7 +21,9 @@ public static class MenuMappings
             item.Price,
             item.CategoryId,
             item.Category?.Name ?? string.Empty,
-            item.PreparationStation,
+            item.StationId,
+            item.Station?.Name ?? string.Empty,
+            item.Station?.Type ?? PreparationStation.Kitchen,
             item.IsAvailable,
             item.PreparationTimeInMinutes,
             item.Allergens.ToList());

@@ -1,5 +1,6 @@
 import { apiRequest } from './client'
-import type { Allergen, PreparationStation } from './menu'
+import type { Allergen } from './menu'
+import type { StationType } from './stations'
 import { parseUtc } from '@/lib/dates'
 
 export const COURSES = ['Starter', 'Main', 'Dessert'] as const
@@ -22,7 +23,10 @@ export interface OrderItem {
   quantity: number
   totalPrice: number
   course: Course
-  station: PreparationStation
+  /** The station the item was ordered for; firing follows the station's firesImmediately flag on the server. */
+  stationId: string
+  stationName: string
+  stationType: StationType
   allergens: Allergen[]
   seatNumber: number | null
   notes: string | null

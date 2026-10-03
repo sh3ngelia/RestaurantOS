@@ -1,5 +1,6 @@
 import { ChefHat, Wine, type LucideIcon } from 'lucide-react'
 
-import type { PreparationStation } from '@/api/menu'
+import type { StationType } from '@/api/stations'
 
-export const STATION_ICONS: Record<PreparationStation, LucideIcon> = { Kitchen: ChefHat, Bar: Wine }
+/** The icon for a station, from its type. */
+export const STATION_ICONS: Record<StationType, LucideIcon> = { Kitchen: ChefHat, Bar: Wine }

@@ -2,12 +2,14 @@ import { Navigate, createBrowserRouter } from 'react-router'
 
 import { LoginPage } from '@/features/auth/LoginPage'
 import { ProtectedRoute, PublicOnlyRoute } from '@/features/auth/ProtectedRoute'
+import { RequireRole } from '@/features/auth/RequireRole'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { NotFoundPage } from '@/features/errors/NotFoundPage'
 import { MenuPage } from '@/features/menu/MenuPage'
 import { ModulePage } from '@/features/modules/ModulePage'
 import { ModuleRoute } from '@/features/modules/ModuleRoute'
 import { StaffPage } from '@/features/staff/StaffPage'
+import { StationsPage } from '@/features/stations/StationsPage'
 import { OrderPage } from '@/features/orders/OrderPage'
 import { OrdersPage } from '@/features/orders/OrdersPage'
 import { ReservationsPage } from '@/features/reservations/ReservationsPage'
@@ -77,6 +79,17 @@ export const router = createBrowserRouter([
                 element: (
                   <ModuleRoute id="menu">
                     <MenuPage />
+                  </ModuleRoute>
+                ),
+              },
+              {
+                // Stations are managed from the Menu module; the API allows changes by Managers only.
+                path: 'm/menu/stations',
+                element: (
+                  <ModuleRoute id="menu">
+                    <RequireRole roles={['Manager']}>
+                      <StationsPage />
+                    </RequireRole>
                   </ModuleRoute>
                 ),
               },

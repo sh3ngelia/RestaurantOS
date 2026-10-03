@@ -83,13 +83,13 @@ public class Order : BaseEntity
         if (drafts.Count == 0)
             throw new DomainException("There are no new items to send.");
 
-        var kitchenDrafts = drafts.Where(i => i.Station == PreparationStation.Kitchen).ToList();
+        var kitchenDrafts = drafts.Where(i => !i.FiresImmediately).ToList();
         if (CurrentCourse is null && kitchenDrafts.Count > 0)
             CurrentCourse = kitchenDrafts.Min(i => i.Course);
 
         foreach (var item in drafts)
         {
-            var fireNow = item.Station == PreparationStation.Bar || item.Course <= CurrentCourse;
+            var fireNow = item.FiresImmediately || item.Course <= CurrentCourse;
             item.Send(fireNow);
         }
 

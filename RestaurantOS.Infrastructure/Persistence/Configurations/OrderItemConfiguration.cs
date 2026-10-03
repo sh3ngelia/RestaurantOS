@@ -31,8 +31,11 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
             .IsRequired()
             .HasMaxLength(150);
 
-        builder.Property(oi => oi.Station)
-            .IsRequired();
+        builder.Property(oi => oi.StationName)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        builder.HasIndex(oi => new { oi.StationId, oi.Status });
 
         builder.Property(oi => oi.Course)
             .IsRequired();

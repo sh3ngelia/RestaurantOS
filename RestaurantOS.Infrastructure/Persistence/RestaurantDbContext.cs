@@ -22,7 +22,7 @@ public class RestaurantDbContext : DbContext, IUnitOfWork
     public DbSet<MenuCategory> MenuCategories => Set<MenuCategory>();
     public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
     public DbSet<Shift> Shifts => Set<Shift>();
-
+    public DbSet<Station> Stations => Set<Station>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -9,7 +9,9 @@ public record MenuItemResponse(
     decimal Price,
     Guid CategoryId,
     string CategoryName,
-    PreparationStation PreparationStation,
+    Guid StationId,
+    string StationName,
+    PreparationStation StationType,
     bool IsAvailable,
     int PreparationTimeInMinutes,
     IReadOnlyList<Allergen> Allergens);
@@ -19,7 +21,7 @@ public record CreateMenuItemRequest(
     string? Description,
     decimal Price,
     Guid CategoryId,
-    PreparationStation PreparationStation,
+    Guid StationId,
     int PreparationTimeInMinutes,
     IReadOnlyList<Allergen>? Allergens);
 
@@ -28,7 +30,7 @@ public record UpdateMenuItemRequest(
     string? Description,
     decimal Price,
     Guid CategoryId,
-    PreparationStation PreparationStation,
+    Guid StationId,
     int PreparationTimeInMinutes,
     IReadOnlyList<Allergen>? Allergens);
 

@@ -83,15 +83,14 @@ export function Ticket({ order, permissions, className }: TicketProps) {
       })
   }
 
-  // Drinks first (bar items fire as soon as they're sent, whatever their course),
-  // then kitchen items by course.
+  // Drinks first (every item on a Bar-type station, whatever its course), then kitchen items by course.
   const sections = [
-    { key: 'drinks', label: 'Drinks', course: null, lines: order.items.filter((i) => i.station === 'Bar') },
+    { key: 'drinks', label: 'Drinks', course: null, lines: order.items.filter((i) => i.stationType === 'Bar') },
     ...COURSES.map((course) => ({
       key: course,
       label: COURSE_LABELS[course].many,
       course,
-      lines: order.items.filter((i) => i.station !== 'Bar' && i.course === course),
+      lines: order.items.filter((i) => i.stationType !== 'Bar' && i.course === course),
     })),
   ].filter((section) => section.lines.length > 0)
 
@@ -255,13 +254,24 @@ function TicketLine({ item, editable, permissions, busyAction, onQuantity, onRem
           >
             <span className="min-w-0 break-words">{item.name}</span>
           </p>
-          {(item.seatNumber !== null || item.notes) && (
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              {item.seatNumber !== null && <span className="font-medium text-foreground/80">Seat {item.seatNumber}</span>}
-              {item.seatNumber !== null && item.notes && <span aria-hidden="true"> · </span>}
-              {item.notes && <span>{item.notes}</span>}
-            </p>
-          )}
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            <span className="text-xs">
+              <span className="sr-only">Station: </span>
+              {item.stationName}
+            </span>
+            {item.seatNumber !== null && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span className="font-medium text-foreground/80">Seat {item.seatNumber}</span>
+              </>
+            )}
+            {item.notes && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span>{item.notes}</span>
+              </>
+            )}
+          </p>
           <AllergenBadges allergens={item.allergens} className="mt-1.5" />
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">

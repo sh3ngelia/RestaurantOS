@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
-import { STATION_ICONS } from '@/features/menu/stations'
+import { useStations } from '@/features/stations/hooks'
+import { STATION_ICONS } from '@/features/stations/icons'
 import { useFormState } from '@/hooks/useFormState'
 import { segmentClass, segmentGroupClass } from '@/lib/controls'
 import { formatPrice } from '@/lib/format'
@@ -63,8 +64,9 @@ function AddItemForm({ order, item, onDone }: { order: Order; item: MenuItem; on
   const id = (field: Field) => `${baseId}-${field}`
   const formErrorId = `${baseId}-form-error`
   const add = useAddItem()
-  const StationIcon = STATION_ICONS[item.preparationStation]
-  const isBar = item.preparationStation === 'Bar'
+  const StationIcon = STATION_ICONS[item.stationType]
+  // The server fires by the station's flag, not by kitchen vs. bar. Unknown until stations load: no hint.
+  const firesImmediately = useStations().data?.find((s) => s.id === item.stationId)?.firesImmediately ?? false
 
   const form = useFormState<Field, Values>({
     initialValues: { quantity: '1', course: defaultCourseFor(item.categoryName), seatNumber: '', notes: '' },
@@ -116,7 +118,7 @@ function AddItemForm({ order, item, onDone }: { order: Order; item: MenuItem; on
           <span className="tabular-nums">{formatPrice(item.price)}</span>
           <span aria-hidden="true">·</span>
           <StationIcon className="size-3.5" aria-hidden="true" />
-          {item.preparationStation}
+          {item.stationName}
         </SheetDescription>
       </SheetHeader>
 
@@ -145,7 +147,7 @@ function AddItemForm({ order, item, onDone }: { order: Order; item: MenuItem; on
         <FormField
           id={id('course')}
           label="Course"
-          hint={isBar ? 'Drinks go to the bar as soon as you send, whatever the course.' : undefined}
+          hint={firesImmediately ? `${item.stationName} items are sent as soon as you send, whatever the course.` : undefined}
           error={form.errorFor('course')}
         >
           <RadioGroup.Root
@@ -153,7 +155,7 @@ function AddItemForm({ order, item, onDone }: { order: Order; item: MenuItem; on
             value={values.course}
             onValueChange={(value) => form.setValue('course', value)}
             aria-labelledby={`${id('course')}-label`}
-            aria-describedby={fieldDescribedBy(id('course'), { error: form.errorFor('course'), hint: isBar })}
+            aria-describedby={fieldDescribedBy(id('course'), { error: form.errorFor('course'), hint: firesImmediately })}
             className={cn(segmentGroupClass, 'grid-cols-3')}
           >
             {COURSES.map((course) => (

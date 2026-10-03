@@ -1,10 +1,11 @@
 import { useId, useState, type FormEvent } from 'react'
-import { RadioGroup } from 'radix-ui'
+import { Link } from 'react-router'
 import { LoaderCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { ApiError } from '@/api/errors'
-import { ALLERGENS, PREPARATION_STATIONS, type Allergen, type MenuCategory, type MenuItem } from '@/api/menu'
+import { ALLERGENS, type Allergen, type MenuCategory, type MenuItem } from '@/api/menu'
+import type { Station } from '@/api/stations'
 import { FormAlert, FormField } from '@/components/FormField'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,12 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { useFormState } from '@/hooks/useFormState'
-import { segmentClass, segmentGroupClass } from '@/lib/controls'
 import { fieldDescribedBy, focusById } from '@/lib/forms'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { notifyMenuError, useSaveItem } from '../hooks'
-import { STATION_ICONS } from '../stations'
+import { useStations } from '@/features/stations/hooks'
+import { STATION_ICONS } from '@/features/stations/icons'
 import {
   ITEM_FIELDS,
   ITEM_LIMITS,
@@ -37,11 +38,30 @@ interface ItemFormSheetProps {
 }
 
 export function ItemFormSheet({ open, onOpenChange, item, defaultCategoryId, categories }: ItemFormSheetProps) {
+  // Loaded with the page (not on open), so the form usually mounts with stations ready.
+  const stations = useStations()
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" closeLabel="Close item form" className="w-full sm:w-[min(34rem,100vw)]">
-        {/* Mounted fresh on every open, so the form always starts from the current item. */}
-        <ItemForm item={item} defaultCategoryId={defaultCategoryId} categories={categories} onDone={() => onOpenChange(false)} />
+        {stations.isPending ? (
+          <div role="status" className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
+            <SheetTitle className="sr-only">{item ? `Edit ${item.name}` : 'New item'}</SheetTitle>
+            <SheetDescription className="sr-only">Loading stations</SheetDescription>
+            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+            Loading…
+          </div>
+        ) : (
+          // Mounted fresh on every open, so the form always starts from the current item.
+          <ItemForm
+            item={item}
+            defaultCategoryId={defaultCategoryId}
+            categories={categories}
+            stations={stations.data ?? []}
+            stationsFailed={stations.isError}
+            onDone={() => onOpenChange(false)}
+          />
+        )}
       </SheetContent>
     </Sheet>
   )
@@ -51,19 +71,29 @@ function ItemForm({
   item,
   defaultCategoryId,
   categories,
+  stations,
+  stationsFailed,
   onDone,
 }: {
   item: MenuItem | null
   defaultCategoryId?: string
   categories: MenuCategory[]
+  stations: Station[]
+  stationsFailed: boolean
   onDone: () => void
 }) {
   const baseId = useId()
   const id = (field: ItemField) => `${baseId}-${field}`
   const formErrorId = `${baseId}-form-error`
+  // Active stations only, in display order. An item already on an inactive station keeps it listed,
+  // so the select isn't blank; the server decides whether it may stay there.
+  const stationOptions = stations.filter((s) => s.isActive || s.id === item?.stationId)
 
   const form = useFormState({
-    initialValues: itemFormValues(item, { categoryId: defaultCategoryId ?? categories[0]?.id }),
+    initialValues: itemFormValues(item, {
+      categoryId: defaultCategoryId ?? categories[0]?.id,
+      stationId: stationOptions[0]?.id,
+    }),
     fields: ITEM_FIELDS,
     validate: validateItem,
   })
@@ -176,38 +206,17 @@ function ItemForm({
           </Select>
         </FormField>
 
-        <FormField
-          id={id('preparationStation')}
-          label="Station"
-          hint="Where the ticket prints when this is ordered."
-          error={form.errorFor('preparationStation')}
-        >
-          <RadioGroup.Root
-            id={id('preparationStation')}
-            value={values.preparationStation}
-            onValueChange={(value) => form.setValue('preparationStation', value)}
-            aria-labelledby={`${id('preparationStation')}-label`}
-            aria-describedby={fieldDescribedBy(id('preparationStation'), {
-              error: form.errorFor('preparationStation'),
-              hint: true,
-            })}
-            className={cn(segmentGroupClass, 'grid-cols-2')}
-          >
-            {PREPARATION_STATIONS.map((station) => {
-              const Icon = STATION_ICONS[station]
-              return (
-                <RadioGroup.Item
-                  key={station}
-                  value={station}
-                  className={segmentClass(false, 'flex h-9 items-center justify-center gap-2')}
-                >
-                  <Icon className="size-4" aria-hidden="true" />
-                  {station}
-                </RadioGroup.Item>
-              )
-            })}
-          </RadioGroup.Root>
-        </FormField>
+        <StationField
+          id={id('stationId')}
+          value={values.stationId}
+          onChange={(value) => {
+            form.setValue('stationId', value)
+            form.touch('stationId')
+          }}
+          options={stationOptions}
+          failed={stationsFailed}
+          error={form.errorFor('stationId')}
+        />
 
         <div className="grid gap-5 sm:grid-cols-2">
           <FormField id={id('price')} label="Price" error={form.errorFor('price')}>
@@ -266,6 +275,62 @@ function ItemForm({
         </Button>
       </SheetFooter>
     </form>
+  )
+}
+
+/** Station select: where the item's tickets go. Shows each station's type icon. */
+function StationField({
+  id,
+  value,
+  onChange,
+  options,
+  failed,
+  error,
+}: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  options: Station[]
+  failed: boolean
+  error?: string
+}) {
+  const empty = !failed && options.length === 0
+  const hint = failed ? (
+    "Couldn't load stations. Close the form and try again."
+  ) : empty ? (
+    <>
+      No active stations.{' '}
+      <Link to="/m/menu/stations" className="underline underline-offset-4 hover:text-foreground">
+        Add one under Stations
+      </Link>
+      .
+    </>
+  ) : (
+    'Where the ticket goes when this is ordered.'
+  )
+
+  return (
+    <FormField id={id} label="Station" hint={hint} error={error}>
+      <Select value={options.some((s) => s.id === value) ? value : ''} onValueChange={onChange} disabled={options.length === 0}>
+        <SelectTrigger id={id} aria-invalid={!!error} aria-describedby={fieldDescribedBy(id, { error, hint: true })}>
+          <SelectValue placeholder="Choose a station" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((station) => {
+            const Icon = STATION_ICONS[station.type]
+            return (
+              <SelectItem key={station.id} value={station.id}>
+                <span className="flex items-center gap-2">
+                  <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+                  {station.name}
+                  {!station.isActive && <span className="text-muted-foreground">(inactive)</span>}
+                </span>
+              </SelectItem>
+            )
+          })}
+        </SelectContent>
+      </Select>
+    </FormField>
   )
 }
 

@@ -1,6 +1,5 @@
 import { apiRequest } from './client'
-
-export const PREPARATION_STATIONS = ['Kitchen', 'Bar'] as const
+import type { StationType } from './stations'
 
 /** The 14 EU allergens (Regulation 1169/2011), in the order the API's Allergen enum declares them. */
 export const ALLERGENS = [
@@ -20,7 +19,6 @@ export const ALLERGENS = [
   'Molluscs',
 ] as const
 export type Allergen = (typeof ALLERGENS)[number]
-export type PreparationStation = (typeof PREPARATION_STATIONS)[number]
 
 export interface MenuCategory {
   id: string
@@ -37,7 +35,9 @@ export interface MenuItem {
   price: number
   categoryId: string
   categoryName: string
-  preparationStation: PreparationStation
+  stationId: string
+  stationName: string
+  stationType: StationType
   isAvailable: boolean
   preparationTimeInMinutes: number
   allergens: Allergen[]
@@ -54,7 +54,7 @@ export interface MenuItemInput {
   description: string | null
   price: number
   categoryId: string
-  preparationStation: PreparationStation
+  stationId: string
   preparationTimeInMinutes: number
   allergens: Allergen[]
 }

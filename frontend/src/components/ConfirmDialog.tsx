@@ -1,6 +1,7 @@
 import { useState, type MouseEvent, type ReactNode } from 'react'
 import { LoaderCircle } from 'lucide-react'
 
+import { FormAlert } from '@/components/FormField'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,8 @@ interface ConfirmDialogProps {
   confirmDisabled?: boolean
   /** Red for destructive actions (the default); the accent for a deliberate but safe override. */
   confirmVariant?: 'destructive' | 'default'
+  /** Why the last attempt was refused (e.g. a 409 detail), shown inside the dialog. */
+  error?: string | null
 }
 
 /** Confirmation that stays open, with a spinner, until the action settles. */
@@ -36,6 +39,7 @@ export function ConfirmDialog({
   onConfirm,
   confirmDisabled = false,
   confirmVariant = 'destructive',
+  error = null,
 }: ConfirmDialogProps) {
   const [pending, setPending] = useState(false)
 
@@ -59,6 +63,7 @@ export function ConfirmDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
+        <FormAlert message={error} />
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
           <AlertDialogAction variant={confirmVariant} onClick={handleConfirm} disabled={pending || confirmDisabled} aria-busy={pending}>

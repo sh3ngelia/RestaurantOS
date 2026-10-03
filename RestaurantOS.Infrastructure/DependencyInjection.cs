@@ -30,6 +30,8 @@ public static class DependencyInjection
 
         services.AddScoped<IUserRepository, UserRepository>();
 
+        services.AddScoped<IStationRepository, StationRepository>();
+
         services.AddScoped<DatabaseSeeder>();
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<RestaurantDbContext>());
@@ -42,6 +44,8 @@ public static class DependencyInjection
         services.AddScoped<IReservationRepository, ReservationRepository>();
 
         services.AddScoped<IOrderRepository, OrderRepository>();
+
+        services.AddScoped<DemoDataSeeder>();
 
         return services;
     }

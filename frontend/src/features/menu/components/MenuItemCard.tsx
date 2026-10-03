@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { notifyMenuError, useSetAvailability } from '../hooks'
 import type { MenuPermissions } from '../permissions'
-import { STATION_ICONS } from '../stations'
+import { STATION_ICONS } from '@/features/stations/icons'
 import { PriceEditor } from './PriceEditor'
 
 interface MenuItemCardProps {
@@ -23,7 +23,7 @@ interface MenuItemCardProps {
 }
 
 export function MenuItemCard({ item, permissions, onEdit, onDelete }: MenuItemCardProps) {
-  const StationIcon = STATION_ICONS[item.preparationStation]
+  const StationIcon = STATION_ICONS[item.stationType]
   const off = !item.isAvailable
   const nameId = `menu-item-${item.id}`
   const hasFooter = permissions.canToggleAvailability || permissions.canManage
@@ -59,7 +59,8 @@ export function MenuItemCard({ item, permissions, onEdit, onDelete }: MenuItemCa
       <div className={cn('mt-2.5 flex flex-wrap items-center gap-1.5', !hasFooter && 'mt-auto pt-2.5')}>
         <Badge variant="outline" size="sm">
           <StationIcon aria-hidden="true" />
-          {item.preparationStation}
+          <span className="sr-only">Station: </span>
+          {item.stationName}
         </Badge>
         <Badge variant="muted" size="sm">
           <Timer aria-hidden="true" />

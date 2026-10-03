@@ -8,5 +8,6 @@ public interface IMenuItemRepository
     Task<IReadOnlyList<MenuItem>> GetAllAsync(Guid? categoryId = null, CancellationToken cancellationToken = default);
     Task<bool> ExistsByNameAsync(string name, Guid? excludeId = null, CancellationToken cancellationToken = default);
     Task<bool> AnyInCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default);
+    Task<int> CountByStationAsync(Guid stationId, CancellationToken cancellationToken = default);
     void Add(MenuItem item);
 }

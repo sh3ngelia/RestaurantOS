@@ -12,8 +12,13 @@ public class OrderItem : BaseEntity
     // Snapshot — შეკვეთის მომენტისას
     public string MenuItemName { get; private set; } = string.Empty;
     public decimal UnitPrice { get; private set; }
-    public PreparationStation Station { get; private set; }
     public Allergen Allergens { get; private set; }
+
+    // სადგური — ასევე snapshot
+    public Guid StationId { get; private set; }
+    public string StationName { get; private set; } = string.Empty;
+    public PreparationStation StationType { get; private set; }
+    public bool FiresImmediately { get; private set; }
 
     public Course Course { get; private set; }
     public int Quantity { get; private set; }
@@ -36,8 +41,13 @@ public class OrderItem : BaseEntity
         MenuItemId = menuItem.Id;
         MenuItemName = menuItem.Name;
         UnitPrice = menuItem.Price;
-        Station = menuItem.PreparationStation;
         Allergens = menuItem.Allergens;
+
+        StationId = menuItem.StationId;
+        StationName = menuItem.Station.Name;
+        StationType = menuItem.Station.Type;
+        FiresImmediately = menuItem.Station.FiresImmediately;
+
         Course = course;
         Quantity = quantity;
         Notes = notes;

@@ -18,10 +18,10 @@ public class CreateMenuItemRequestValidator : AbstractValidator<CreateMenuItemRe
         
         RuleFor(x => x.CategoryId)
             .NotEmpty().WithMessage("Category ID is required.");
-        
-        RuleFor(x => x.PreparationStation)
-            .IsInEnum().WithMessage("Invalid preparation station.");
-        
+
+        RuleFor(x => x.StationId)
+            .NotEmpty().WithMessage("Station is required.");
+
         RuleFor(x => x.PreparationTimeInMinutes)
             .InclusiveBetween(1, 240).WithMessage("Preparation time must be between 1 and 240 minutes.");
 

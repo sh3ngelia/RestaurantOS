@@ -5,6 +5,7 @@ using RestaurantOS.Application.Menu;
 using RestaurantOS.Application.Orders;
 using RestaurantOS.Application.Reservations;
 using RestaurantOS.Application.Staff;
+using RestaurantOS.Application.Stations;
 using RestaurantOS.Application.Tables;
 
 namespace RestaurantOS.Application;
@@ -28,6 +29,8 @@ public static class DependencyInjection
         services.AddScoped<IOrderService, OrderService>();
 
         services.AddScoped<IStaffService, StaffService>();
+
+        services.AddScoped<IStationService, StationService>();
 
         return services;
     }

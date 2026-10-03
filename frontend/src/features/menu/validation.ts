@@ -1,4 +1,4 @@
-import type { Allergen, MenuCategory, MenuCategoryInput, MenuItem, MenuItemInput, PreparationStation } from '@/api/menu'
+import type { Allergen, MenuCategory, MenuCategoryInput, MenuItem, MenuItemInput } from '@/api/menu'
 import { parsePrice, priceInputValue } from '@/lib/format'
 
 /*
@@ -21,7 +21,7 @@ export const ITEM_FIELDS = [
   'description',
   'price',
   'categoryId',
-  'preparationStation',
+  'stationId',
   'preparationTimeInMinutes',
 ] as const
 export type ItemField = (typeof ITEM_FIELDS)[number]
@@ -31,17 +31,17 @@ export interface ItemFormValues {
   description: string
   price: string
   categoryId: string
-  preparationStation: PreparationStation
+  stationId: string
   preparationTimeInMinutes: string
 }
 
-export function itemFormValues(item: MenuItem | null, defaults: { categoryId?: string } = {}): ItemFormValues {
+export function itemFormValues(item: MenuItem | null, defaults: { categoryId?: string; stationId?: string } = {}): ItemFormValues {
   return {
     name: item?.name ?? '',
     description: item?.description ?? '',
     price: item ? priceInputValue(item.price) : '',
     categoryId: item?.categoryId ?? defaults.categoryId ?? '',
-    preparationStation: item?.preparationStation ?? 'Kitchen',
+    stationId: item?.stationId ?? defaults.stationId ?? '',
     preparationTimeInMinutes: item ? String(item.preparationTimeInMinutes) : '',
   }
 }
@@ -71,6 +71,7 @@ export function validateItem(values: ItemFormValues): Errors<ItemField> {
   if (priceError) errors.price = priceError
 
   if (!values.categoryId) errors.categoryId = 'Choose a category.'
+  if (!values.stationId) errors.stationId = 'Choose a station.'
 
   const prep = values.preparationTimeInMinutes.trim()
   const minutes = Number(prep)
@@ -88,7 +89,7 @@ export function toItemInput(values: ItemFormValues, allergens: readonly Allergen
     description: values.description.trim() || null,
     price: parsePrice(values.price) ?? 0,
     categoryId: values.categoryId,
-    preparationStation: values.preparationStation,
+    stationId: values.stationId,
     preparationTimeInMinutes: Number(values.preparationTimeInMinutes.trim()),
     allergens: [...allergens],
   }

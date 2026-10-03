@@ -6,7 +6,7 @@ import { AllergenBadges } from '@/components/AllergenBadges'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMenuCategories, useMenuItems } from '@/features/menu/hooks'
-import { STATION_ICONS } from '@/features/menu/stations'
+import { STATION_ICONS } from '@/features/stations/icons'
 import { StatusChip } from '@/components/StatusChip'
 import { filterChipClass } from '@/lib/controls'
 import { formatPrice } from '@/lib/format'
@@ -124,7 +124,7 @@ export function MenuBrowser({ onPick, disabled = false }: MenuBrowserProps) {
 }
 
 function MenuPick({ item, onPick, disabled }: { item: MenuItem; onPick: (item: MenuItem) => void; disabled: boolean }) {
-  const StationIcon = STATION_ICONS[item.preparationStation]
+  const StationIcon = STATION_ICONS[item.stationType]
   const off = !item.isAvailable
 
   return (

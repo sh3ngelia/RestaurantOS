@@ -18,6 +18,7 @@ import { CategoryFormDialog } from './components/CategoryFormDialog'
 import { ALL_CATEGORIES, CategoryNav, type CategoryNavEntry } from './components/CategoryNav'
 import { CategorySection } from './components/CategorySection'
 import { ItemFormSheet } from './components/ItemFormSheet'
+import { MenuSectionNav } from './components/MenuSectionNav'
 import { MenuSkeleton } from './components/MenuSkeleton'
 import { notifyMenuError, useDeleteCategory, useDeleteItem, useMenuCategories, useMenuItems } from './hooks'
 import { useMenuPermissions } from './permissions'
@@ -149,6 +150,8 @@ export function MenuPage() {
 
   return (
     <div className="space-y-5">
+      {permissions.canManage && <MenuSectionNav />}
+
       <PageHeader
         title="Menu"
         description={

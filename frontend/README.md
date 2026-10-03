@@ -47,6 +47,7 @@ src/
 │   ├── orders.ts         /api/orders endpoints, order and item types, query keys
 │   ├── reservations.ts   /api/reservations endpoints, types, query keys (times normalised to UTC)
 │   ├── staff.ts          /api/staff endpoints, types, query keys
+│   ├── stations.ts       /api/stations endpoints, types, query keys
 │   └── tables.ts         /api/tables endpoints, types, query keys
 ├── config/
 │   ├── roles.ts          Role union (mirrors the UserRole enum) + per-role copy
@@ -238,15 +239,15 @@ Two panes on tablets and desktops (menu left, ticket right). On phones a Menu / 
 
 **Menu pane.**
 - **Browsing:** category tabs and accent-insensitive search.
-- **Item cards** show price, station icon and allergens. 86'd items stay visible but disabled, with the stamp.
+- **Item cards** show price, the station's type icon (kitchen or bar) and allergens. 86'd items stay visible but disabled, marked "86'd".
 - **Quick-add sheet:** tapping an item opens a sheet with a quantity stepper (1-50), course (Starter / Main / Dessert), an optional seat and notes (at most 500 characters).
   - **Default course:** taken from the category name, so "Starter(s)" gives Starter, "Dessert(s)" gives Dessert, and anything else Main.
-  - **Bar items** still pick a course, but the sheet notes that drinks go out as soon as you send.
+  - **Stations that fire immediately:** the item still picks a course, but the sheet notes that it goes out as soon as you send. This follows the station's `firesImmediately` flag (from `GET /api/stations`), which is also what the server uses.
   - **Fresh every time:** the form is keyed per pick, so a quick second tap never inherits the previous item's quantity or course.
 
 **Ticket pane.**
-- **Grouping:** a **Drinks** section at the top holds every bar item, whatever its course, since the bar fires drinks as soon as they're sent. Kitchen items follow, grouped by course (Starters / Mains / Desserts).
-- **Lines:** each shows quantity, name, seat, notes, allergens in a red warning style, line price and a status chip (New, Held, Sent, Preparing, Ready, Served, Cancelled).
+- **Grouping:** a **Drinks** section at the top holds every item whose `stationType` is `Bar`, whatever its course. Kitchen items follow, grouped by course (Starters / Mains / Desserts).
+- **Lines:** each shows quantity, name, the station name as small secondary text, seat, notes, allergens in a red warning style, line price and a status chip (New, Held, Sent, Preparing, Ready, Served, Cancelled).
 - **Status chips come from the API.** Each chip shows the item's `status` from the latest response exactly. The client never works out Held, Sent or anything else from course or `currentCourse`.
 - **Actions per line:**
 
@@ -331,7 +332,7 @@ The first live module. It covers categories and items from `/api/menu`, for Mana
 
 | Role              | Can do                                                                   |
 | ----------------- | ------------------------------------------------------------------------ |
-| Manager           | Everything: categories and items (create, edit, delete) and inline price edits |
+| Manager           | Everything: categories, items and stations (create, edit, delete) and inline price edits |
 | Kitchen, Bar      | 86 or un-86 items with the availability switch                           |
 | Waiter            | Read-only menu                                                           |
 
@@ -339,7 +340,7 @@ Permissions live in [src/features/menu/permissions.ts](src/features/menu/permiss
 
 **Layout.** A category list, shown as sticky pill tabs on mobile and a sticky vertical list on desktop, with an "All" option and item counts. The chosen category is kept in `?category=`, so it survives a reload and works with the back button. Items appear as cards grouped under category headings. Search matches on name, ignores case and accents ("creme" finds "Crème brûlée"), focuses with `/` and clears with `Esc`.
 
-**Item cards** show the name, description, price in EUR, station (Kitchen or Bar), prep time, allergens and availability. An unavailable item is **86'd**: its name is struck through in copper, the card turns muted and dashed, and it gets an "86'd" stamp, like the 404 page.
+**Item cards** show the name, description, price in EUR, station name (with a kitchen or bar icon from its type), prep time, allergens and availability. An unavailable item is **86'd**: its name is struck through, the card turns muted and dashed, and it gets an "86'd" chip.
 
 **Server state (TanStack Query).**
 - **Keys** are hierarchical: `['menu', 'categories']` and `['menu', 'items', 'list' | 'detail', …]`. One invalidation can therefore target all items, or the whole menu.
@@ -365,9 +366,20 @@ The price field also accepts `12,50` and `€12.50`. Client validation gives ins
 
 **Forms.**
 - **Items** are edited in a right-hand sheet, and **categories** in a dialog.
+- **Station:** a select of the active stations in display order, each with its type icon. An item already on a station that has since been deactivated keeps it listed (marked inactive) so the field isn't blank; the API refuses new items on inactive stations with a 400, which shows as a form alert.
 - **Deleting** asks for confirmation in an alert dialog that stays open, with a spinner, until the request settles.
 - **Non-empty categories:** deleting one explains that it must be emptied first. The server's 409 still covers the case where the client's data is stale.
 - **Prices** can be edited inline from the card: click the price (or focus it and press Enter), type, then press Enter to save or Esc to cancel.
+
+### Stations (`/m/menu/stations`)
+
+Where menu items' tickets go. Managers reach it from the **Items / Stations** switch at the top of the Menu page; the route is guarded to Manager, matching the API, which allows any staff role to read stations but only a Manager to change them.
+
+- **List:** a table of name (with the type icon), type, whether it fires immediately, display order, how many menu items use it and an Active / Inactive chip. Item counts come from the menu items query, so they need no extra request.
+- **Create / edit** in a dialog: name (at most 100 characters), type (Kitchen or Bar), display order (0 or higher) and **Fires immediately**: items for this station are sent as soon as the round is sent, without waiting for their course. On a new station the switch follows the type (on for Bar) until it is set by hand. Validation errors keyed `Name`, `Type` or `DisplayOrder` appear under their fields; a 409 ("Station 'Grill' already exists.") is a form alert.
+- **Activate / deactivate** from the row's menu, waiting for the server. A station that menu items still use can't be deactivated: the action is soft-disabled with a tooltip giving the count. If the server still refuses with a 409, its `detail` stays on screen above the list until the next action.
+- **Delete** asks for confirmation. When menu items use the station, the dialog says how many and the button is disabled. A 409 from the server (for example "Station 'Grill' has 2 menu item(s). Move them to another station before it can be deleted.") appears inside the dialog, which stays open.
+- **Saving** a station also refreshes the menu items, because they carry the station's name and type.
 
 ---
 

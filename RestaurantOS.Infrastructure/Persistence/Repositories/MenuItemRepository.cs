@@ -17,6 +17,7 @@ public class MenuItemRepository : IMenuItemRepository
     {
         return await _context.MenuItems
             .Include(mi => mi.Category)
+            .Include(mi => mi.Station)
             .FirstOrDefaultAsync(mi => mi.Id == id, cancellationToken);
     }
 
@@ -25,6 +26,7 @@ public class MenuItemRepository : IMenuItemRepository
         var query = _context.MenuItems
             .AsNoTracking()
             .Include(mi => mi.Category)
+            .Include(mi => mi.Station)
             .AsQueryable();
 
         if (categoryId.HasValue)
@@ -48,6 +50,9 @@ public class MenuItemRepository : IMenuItemRepository
         return await _context.MenuItems
             .AnyAsync(mi => mi.CategoryId == categoryId, cancellationToken);
     }
+
+    public async Task<int> CountByStationAsync(Guid stationId, CancellationToken cancellationToken = default) =>
+    await _context.MenuItems.CountAsync(mi => mi.StationId == stationId, cancellationToken);
 
     public void Add(MenuItem item)
     {
