@@ -6,8 +6,11 @@ import { orderKeys, ordersApi, type AddItemInput, type ItemAction, type Order } 
 import { tableKeys } from '@/api/tables'
 import { orderTotal } from './rules'
 
-/** Until SignalR arrives, open orders are polled so ready items show up on their own. */
-const POLL_MS = 10_000
+/**
+ * Orders refresh when the hub sends OrderChanged (see src/realtime). This slow refetch is
+ * only a fallback in case the connection drops and an event is missed.
+ */
+const FALLBACK_REFETCH_MS = 60_000
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 
@@ -16,7 +19,7 @@ export function useOpenOrders({ enabled = true }: { enabled?: boolean } = {}) {
     queryKey: orderKeys.open(),
     queryFn: ({ signal }) => ordersApi.listOpen(undefined, signal),
     enabled,
-    refetchInterval: POLL_MS,
+    refetchInterval: FALLBACK_REFETCH_MS,
     refetchOnWindowFocus: true,
   })
 }
@@ -26,8 +29,8 @@ export function useOrder(id: string | undefined) {
     queryKey: orderKeys.detail(id ?? ''),
     queryFn: ({ signal }) => ordersApi.get(id as string, signal),
     enabled: !!id,
-    // Stop polling once the order is closed or cancelled.
-    refetchInterval: (query) => (query.state.data && query.state.data.status !== 'Opened' ? false : POLL_MS),
+    // Stop the fallback refetch once the order is closed or cancelled.
+    refetchInterval: (query) => (query.state.data && query.state.data.status !== 'Opened' ? false : FALLBACK_REFETCH_MS),
     refetchOnWindowFocus: true,
   })
 }

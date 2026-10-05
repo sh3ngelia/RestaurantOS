@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using RestaurantOS.Application.Authentication;
+using RestaurantOS.Application.Kitchen;
 using RestaurantOS.Application.Menu;
 using RestaurantOS.Application.Orders;
 using RestaurantOS.Application.Reservations;
@@ -31,6 +32,8 @@ public static class DependencyInjection
         services.AddScoped<IStaffService, StaffService>();
 
         services.AddScoped<IStationService, StationService>();
+
+        services.AddScoped<IKitchenService, KitchenService>();
 
         return services;
     }

@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router'
 import { Menu } from 'lucide-react'
 
+import { ConnectionStatus } from '@/components/ConnectionStatus'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -39,6 +40,7 @@ export function Topbar({ onOpenNav, navOpen }: { onOpenNav: () => void; navOpen:
       </p>
 
       <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+        <ConnectionStatus />
         <ThemeToggle />
         <Separator orientation="vertical" className="mx-1 h-6! hidden sm:block" />
         <UserMenu />

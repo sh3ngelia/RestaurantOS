@@ -1,8 +1,8 @@
 # RestaurantOS — Web client
 
-The staff-facing web app for RestaurantOS: sign-in, a role-aware app shell, a dashboard for each station of the restaurant, and the **Tables**, **Reservations**, **Orders**, **Menu** and **Staff** modules. It talks to the ASP.NET Core API in this repository.
+The staff-facing web app for RestaurantOS: sign-in, a role-aware app shell, a dashboard for each station of the restaurant, and the **Tables**, **Reservations**, **Orders**, **Kitchen Display**, **Menu** and **Staff** modules, with live updates over SignalR. It talks to the ASP.NET Core API in this repository.
 
-**Stack:** React 19 · TypeScript (strict) · Vite · Tailwind CSS v4 · shadcn/ui (Radix) · React Router · TanStack Query · Motion · lucide-react · sonner
+**Stack:** React 19 · TypeScript (strict) · Vite · Tailwind CSS v4 · shadcn/ui (Radix) · React Router · TanStack Query · SignalR · Motion · lucide-react · sonner
 
 ---
 
@@ -30,8 +30,8 @@ Open http://localhost:5173 and sign in with the seeded manager account (`Seed:Ma
 
 `.env.development` holds `VITE_API_URL=https://localhost:7219`.
 
-- **Development:** the browser calls `/api/...` on the Vite origin, and Vite proxies those calls to `VITE_API_URL` ([vite.config.ts](vite.config.ts)). The API has no CORS policy, and the proxy also accepts the ASP.NET Core self-signed dev certificate, so neither gets in the way.
-- **Production:** the client calls `VITE_API_URL` directly. Either serve the app from the same origin as the API, or add a CORS policy for the app's origin to the API.
+- **Development:** the browser calls `/api/...` and connects to `/hubs/kitchen` on the Vite origin, and Vite proxies both to `VITE_API_URL` ([vite.config.ts](vite.config.ts)); the `/hubs` entry has `ws: true` so the SignalR WebSocket upgrade goes through. The proxy also accepts the ASP.NET Core self-signed dev certificate.
+- **Production:** the client calls `VITE_API_URL` directly, for REST and for `VITE_API_URL/hubs/kitchen`. Either serve the app from the same origin as the API, or allow the app's origin in the API's CORS policy.
 
 ---
 
@@ -43,6 +43,7 @@ src/
 │   ├── client.ts         fetch wrapper: bearer token, ProblemDetails parsing, 401 → sign-out
 │   ├── errors.ts         ApiError, ProblemDetails → message, validation errors → form fields
 │   ├── auth.ts           /api/auth endpoints, query keys, claim helpers
+│   ├── kitchen.ts        /api/kitchen/tickets, ticket types, query keys (times normalised to UTC)
 │   ├── menu.ts           /api/menu endpoints, types, query keys
 │   ├── orders.ts         /api/orders endpoints, order and item types, query keys
 │   ├── reservations.ts   /api/reservations endpoints, types, query keys (times normalised to UTC)
@@ -58,6 +59,8 @@ src/
 │   ├── dashboard/        Greeting, placeholder stats, module cards
 │   ├── tables/           Tables module: floor page, status model, hooks, validation, permissions
 │   │   └── components/   Table card + quick actions, SVG table shape, filters, occupancy bar, form
+│   ├── kitchen/          Kitchen Display: page, ticket timing rules, station choice, optimistic hooks, full screen
+│   │   └── components/   Ticket frame + timer, station ticket, pass ticket, item line with allergens
 │   ├── orders/           Orders module: overview, order screen, domain rules, hooks, permissions
 │   │   └── components/   Table cards, menu browser, quick-add sheet, ticket, status chips
 │   ├── reservations/     Reservations module: day page, status + timing model, hooks, validation, summaries
@@ -68,11 +71,12 @@ src/
 │   │   └── components/   Staff row, password field, add / edit / role / reset dialogs
 │   ├── modules/          ModuleRoute (role guard from config) + "coming soon" preview page
 │   └── errors/           404
-├── layouts/              AppShell, sidebar (desktop), drawer (mobile), top bar, user menu
+├── layouts/              AppShell (+ shell context for hiding chrome), sidebar, drawer, top bar, user menu
+├── realtime/             SignalR: one hub connection, group joins, event → query invalidation
 ├── components/
 │   ├── ui/               shadcn/ui primitives (button, input, select, dialog, alert-dialog, popover, sheet, switch, …)
 │   ├── theme/            Theme provider (dark by default, persisted)
-│   └── …                 Logo, RoleBadge, UserAvatar, ThemeToggle, FullScreenLoader,
+│   └── …                 Logo, RoleBadge, UserAvatar, ThemeToggle, ConnectionStatus, FullScreenLoader,
 │                         FormField, ConfirmDialog, EmptyState, AllergenBadges, QuantityStepper
 ├── hooks/                useDocumentTitle, useFormState (client + server validation), useNow
 ├── lib/                  cn() and name helpers, price and date/time helpers, form and DOM helpers
@@ -96,6 +100,33 @@ src/
 - **During use:** any authenticated request that comes back `401` ends the session. The client also signs out when the JWT's `exp` passes, and signing out in one tab signs out the others (via the `storage` event).
 - **Guards:** `ProtectedRoute` requires a verified session and `PublicOnlyRoute` keeps signed-in users away from `/login`. `RequireRole` hides UI and routes by role. These guards only shape the UI: the API enforces authorization on every request.
 - **Errors:** failed responses are parsed as ProblemDetails and their `detail` is shown to the user. For validation problems, the `errors` messages are joined instead. Network failures get their own message.
+
+---
+
+## Real-time updates (SignalR)
+
+Kitchen and floor screens update the moment an order changes, over one SignalR connection to `/hubs/kitchen` ([src/realtime](src/realtime)).
+
+**The connection.**
+- `RealtimeProvider` sits inside `AuthProvider` ([RootLayout](src/layouts/RootLayout.tsx)). It starts the connection once the session is verified and stops it on sign-out or when the token changes.
+- Browsers can't send headers on a WebSocket, so the JWT goes through `accessTokenFactory`, which the API reads from the `access_token` query string. The token is read fresh on every reconnect.
+- **Reconnecting:** automatic, at 0, 2, 5 and 10 seconds, then every 30 seconds without giving up. If the first connection fails, the provider retries on the same schedule, and straight away when the browser comes back online.
+- **Status:** the top bar shows **Live**, **Connecting**, **Reconnecting** or **Offline**, with a tooltip explaining each. The Kitchen Display repeats it in full screen.
+
+**Groups.**
+- Waiter, Host and Manager connections join the floor group on the server automatically.
+- A screen that needs a station or the pass calls `useHubGroup(view)`. The provider reference-counts these requests, calls `JoinStation` / `JoinPass` (or `Leave…`) as screens mount, unmount or switch, and re-joins every registered group after each reconnect. Two screens asking for the same station join it once.
+
+**Events are only signals.** No state is patched from an event; the data always comes from REST.
+
+| Event | Sent to | What the client does |
+| ----- | ------- | -------------------- |
+| `OrderChanged { orderId }` | the order's station groups, the pass, the floor | Invalidates the kitchen tickets queries, the open-orders list, that order's detail and the tables list. Only queries in use refetch. |
+| `ItemReady { orderId, tableNumber, itemName }` | the floor | A toast ("Table 3 · Pork Mtsvadi is ready", with **Open** for roles that take orders), and that table is highlighted on the Orders overview for two minutes or until the order is opened. |
+
+**Missed events.** After every connect and reconnect, the provider invalidates the kitchen, orders and tables queries, because events may have been missed while offline. As a further fallback, open orders, order details, kitchen tickets and the floor still refetch every 60 seconds, and when the window regains focus.
+
+**What doesn't send events.** In the current API, opening an order and seating or clearing a table don't raise `OrderChanged`. Those changes reach other screens through the 60-second fallback.
 
 ---
 
@@ -224,13 +255,13 @@ The waiter's screen. The API allows Waiter and Manager on the floor endpoints, s
 | Role    | Can do                                                                                     |
 | ------- | ------------------------------------------------------------------------------------------ |
 | Waiter  | Start orders, add items, send, fire courses, serve, cancel items, close or cancel the order |
-| Manager | Everything a waiter can, plus **Start** and **Mark ready** on lines, so the whole flow can be tested before the Kitchen Display exists |
+| Manager | Everything a waiter can, plus **Start** and **Mark ready** on lines, for covering the pass |
 
 ### Overview (`/m/orders`)
 
 - **The grid:** a card for every seated table. A table with an open order shows the order number, line count, total, how long it has been open, and a status summary such as "1 ready · 1 preparing · 2 held". A seated table without an order offers **Start order**.
-- **Ready food stands out:** a copper "At the pass" strip at the top lists every table with food ready, and those cards turn copper with a glow. The ready count is a solid copper chip with a live dot, the loudest thing on the page.
-- **Floor access:** Waiters and Managers can read the floor (`GET /api/tables`), so every occupied table appears. If a role ever lost that access (403), the overview stops polling it and quietly falls back to open orders.
+- **Ready food stands out:** an "At the pass" strip at the top lists every table with food ready, and those cards take the accent. When the kitchen marks an item ready (the `ItemReady` event), that table's card also gets an accent ring and a "Just ready" chip for two minutes, or until the order is opened.
+- **Floor access:** Waiters and Managers can read the floor (`GET /api/tables`), so every occupied table appears. If a role ever lost that access (403), the overview stops refetching it and quietly falls back to open orders.
 - **Clear table:** a seated table without an order also offers **Clear table** (`POST /api/tables/{id}/free`), which Waiters may call. It is not offered on tables with an open order, so a ticket can't be orphaned. Waiters are never shown Seat or Hold; the API refuses those for them.
 
 ### Order screen (`/m/orders/:orderId`)
@@ -272,18 +303,52 @@ Two panes on tablets and desktops (menu left, ticket right). On phones a Menu / 
 - **Errors:** a refused action's 400 `detail` appears as a toast.
 - **Ending the order:** closing and cancelling also wait for the server, then return to the overview.
 
-**Staying current.** Open orders and the open ticket refetch every 10 seconds, until SignalR arrives. A closed or cancelled order stops polling.
+**Staying current.** Open orders and the open ticket refetch when the hub sends `OrderChanged` (see Real-time updates), with a 60-second fallback refetch. A closed or cancelled order stops the fallback.
 
 ### Elsewhere in the app
 
 - **Tables page:** for roles that may read orders, a seated table's card shows its order status, and the card's actions start with **Open order** or **Start order**.
-- **Dashboard:** "Open tickets" shows the number of open orders for Waiter and Manager, highlights how many tables have food ready, and links to Orders.
+- **Dashboard:** "Open tickets" shows the number of open orders for Waiter and Manager, highlights how many tables have food ready, and links to Orders. For Kitchen and Bar it shows the tickets on that device's Kitchen Display station instead (see below).
 
 ### Backend gaps
 
 One permission mismatch remains in the current API. The page degrades gracefully and picks up the change automatically once the API allows it:
 
 - **Hosts can't read orders.** `GET /api/orders` allows Waiter and Manager only, so the Tables page shows order summaries only to the Manager. It skips the request for Host rather than taking a 403.
+
+---
+
+## Kitchen Display (`/m/kitchen`, `/m/bar`)
+
+The screens at the stations and the pass, for Kitchen, Bar and Manager (the roles `GET /api/kitchen/tickets` allows). The **Bar** module opens the same screen, starting on a Bar-type station.
+
+**Choosing a screen.**
+- **The picker:** the active stations in display order, plus **Pass — all stations**.
+- **Remembered per device:** the choice is kept in `localStorage`, separately for the Kitchen Display and Bar entries, so a wall tablet reopens on its station.
+- **Defaults:** without a remembered choice, or when the remembered station has been deactivated, Kitchen users get the first Kitchen-type station and Bar users the first Bar-type station. Managers get the pass, and the Bar entry always starts on the first Bar-type station.
+- **Switching** leaves the old hub group and joins the new one.
+
+**Built for the wall.**
+- **Readable at a distance:** large type, high contrast and few controls.
+- **Full screen** hides the sidebar and top bar and asks the browser for full screen through the Fullscreen API. Where the API isn't available, as on iPhone Safari, the chrome is still hidden. Esc or the button leaves full screen, and so does leaving the page.
+- **Tickets** run left to right, oldest first, and wrap to fill the screen. Each shows the table number large, the order number small, and the time since it was fired as mm:ss, ticking every second.
+- **Time states:** under 10 minutes is normal; from 10 minutes the timer and frame turn to the accent; from 15 minutes they turn red, with "Late" written out. The thresholds are `TICKET_WARNING_MINUTES` and `TICKET_LATE_MINUTES` in [rules.ts](src/features/kitchen/rules.ts).
+- **Lines** are grouped by course: quantity, name, seat, notes, and allergens as large red text tags with a warning icon. Allergens are never shown by colour alone.
+
+**Station screen.**
+- **Tap to advance:** tap a line to move it on. Waiting (`Pending`) items show **Start**, which moves them to Preparing (`POST …/start`); Preparing items show **Ready** (`POST …/ready`). Ready items leave the station's screen, and an emptied ticket leaves with them.
+- **Bump ticket** marks every remaining item on the ticket ready.
+- **Optimistic:** every cached ticket list (each station and the pass) changes at once. If the API refuses, everything rolls back and the 400 `detail` appears as a toast. A bump sends one request per item; if any of them fails, the whole bump rolls back and the refetch shows what actually went through.
+- **No double steps:** a line ignores taps while its request is in flight, so a double tap can't skip from Waiting to Ready.
+
+**Pass screen.**
+- **One card per order:** every fired item with its station name and status (Waiting, Preparing, Ready). Ready lines are tinted in the accent.
+- **Ready to go:** when every fired item in a course is Ready, that course and the card say "Ready to go", and the card is outlined in the accent.
+- **Who can act:** Kitchen and Manager can tap a line to mark it ready. Bar sees the pass read-only.
+
+**Empty:** "No open tickets".
+
+**Dashboard.** For Kitchen and Bar, "Open tickets" counts the tickets on that device's Kitchen Display station (the remembered one, else the default), names the station, and joins its hub group so the count stays live. Managers keep the open-orders count.
 
 ---
 

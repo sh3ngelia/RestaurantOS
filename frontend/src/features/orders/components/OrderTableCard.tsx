@@ -3,6 +3,7 @@ import { Eraser, LoaderCircle, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 
 import type { Order } from '@/api/orders'
+import { StatusChip } from '@/components/StatusChip'
 import { Button } from '@/components/ui/button'
 import { formatElapsed } from '@/lib/dates'
 import { STATUS_TONE_CLASSES } from '@/lib/status-tones'
@@ -20,14 +21,16 @@ interface OrderTableCardProps {
   tableId?: string
   order?: Order
   now: Date
+  /** The kitchen has just marked an item ready (live event): highlight until it's seen. */
+  justReady?: boolean
 }
 
-export function OrderTableCard({ tableNumber, tableId, order, now }: OrderTableCardProps) {
-  if (order) return <OpenOrderCard tableNumber={tableNumber} order={order} now={now} />
+export function OrderTableCard({ tableNumber, tableId, order, now, justReady = false }: OrderTableCardProps) {
+  if (order) return <OpenOrderCard tableNumber={tableNumber} order={order} now={now} justReady={justReady} />
   return <StartOrderCard tableNumber={tableNumber} tableId={tableId} />
 }
 
-function OpenOrderCard({ tableNumber, order, now }: { tableNumber: number; order: Order; now: Date }) {
+function OpenOrderCard({ tableNumber, order, now, justReady }: { tableNumber: number; order: Order; now: Date; justReady: boolean }) {
   const { ready } = summarizeOrder(order)
   return (
     <Link
@@ -37,11 +40,16 @@ function OpenOrderCard({ tableNumber, order, now }: { tableNumber: number; order
         'flex h-full min-h-36 flex-col rounded-md border p-3 outline-none transition-colors duration-150',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         ready ? STATUS_TONE_CLASSES.attention.surface : 'border-border bg-card hover:border-border-strong',
+        justReady && 'ring-2 ring-status-attention',
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-base leading-tight font-semibold tabular-nums">Table {tableNumber}</p>
-        <span className="text-xs text-muted-foreground tabular-nums">{formatElapsed(order.createdAt, now)}</span>
+        {justReady ? (
+          <StatusChip tone="attention">Just ready</StatusChip>
+        ) : (
+          <span className="text-xs text-muted-foreground tabular-nums">{formatElapsed(order.createdAt, now)}</span>
+        )}
       </div>
       <div className="mt-auto space-y-2 pt-4">
         <OrderHeadline order={order} />

@@ -29,9 +29,11 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        // The API has no CORS policy, so the dev server forwards /api same-origin.
+        // The dev server forwards /api and /hubs same-origin, so the browser never needs CORS.
         // `secure: false` accepts the ASP.NET Core self-signed development certificate.
         '/api': { target: apiTarget, changeOrigin: true, secure: false },
+        // SignalR: the negotiate request is plain HTTP, then the connection upgrades to a WebSocket.
+        '/hubs': { target: apiTarget, changeOrigin: true, secure: false, ws: true },
       },
     },
   }

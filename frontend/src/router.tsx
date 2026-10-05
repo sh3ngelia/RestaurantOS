@@ -4,6 +4,7 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { ProtectedRoute, PublicOnlyRoute } from '@/features/auth/ProtectedRoute'
 import { RequireRole } from '@/features/auth/RequireRole'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { KitchenDisplayPage } from '@/features/kitchen/KitchenDisplayPage'
 import { NotFoundPage } from '@/features/errors/NotFoundPage'
 import { MenuPage } from '@/features/menu/MenuPage'
 import { ModulePage } from '@/features/modules/ModulePage'
@@ -63,6 +64,23 @@ export const router = createBrowserRouter([
                 element: (
                   <ModuleRoute id="orders">
                     <OrderPage />
+                  </ModuleRoute>
+                ),
+              },
+              {
+                path: 'm/kitchen',
+                element: (
+                  <ModuleRoute id="kitchen">
+                    <KitchenDisplayPage key="kitchen" mode="kitchen" />
+                  </ModuleRoute>
+                ),
+              },
+              {
+                // The same screen, opened on a Bar-type station and remembering its own choice.
+                path: 'm/bar',
+                element: (
+                  <ModuleRoute id="bar">
+                    <KitchenDisplayPage key="bar" mode="bar" />
                   </ModuleRoute>
                 ),
               },

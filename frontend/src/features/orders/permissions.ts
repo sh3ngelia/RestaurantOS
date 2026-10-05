@@ -6,8 +6,8 @@ export interface OrderPermissions {
   /** Take, send, fire, serve and close orders (Waiter, Manager). */
   canTakeOrders: boolean
   /**
-   * Start / mark ready (Kitchen, Bar, Manager on the API). Shown on the order screen to the
-   * Manager only, so the whole flow can be exercised before the Kitchen Display exists.
+   * Start / mark ready (Kitchen, Bar, Manager on the API). Kitchen and Bar do this on the
+   * Kitchen Display; the order screen offers it to the Manager too, for covering the pass.
    */
   canProduce: boolean
 }

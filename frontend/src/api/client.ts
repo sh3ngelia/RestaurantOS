@@ -2,10 +2,10 @@ import { ApiError, NETWORK_ERROR_STATUS, toApiError } from './errors'
 import { readSession } from '@/features/auth/session'
 
 /**
- * In development requests stay same-origin and Vite proxies `/api` to VITE_API_URL
- * (the API has no CORS policy). Production builds call VITE_API_URL directly.
+ * In development requests stay same-origin and Vite proxies `/api` and `/hubs` to
+ * VITE_API_URL. Production builds call VITE_API_URL directly.
  */
-const API_BASE_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
+export const API_BASE_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
 
 type UnauthorizedHandler = () => void
 let unauthorizedHandler: UnauthorizedHandler | null = null

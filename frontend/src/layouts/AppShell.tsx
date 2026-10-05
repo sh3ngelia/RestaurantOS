@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Outlet } from 'react-router'
 
 import { isTypingTarget } from '@/lib/dom'
+import { cn } from '@/lib/utils'
 import { DesktopSidebar } from './DesktopSidebar'
 import { MobileNav } from './MobileNav'
+import { ShellContext, type ShellContextValue } from './shell-context'
 import { Topbar } from './Topbar'
 
 const SIDEBAR_STORAGE_KEY = 'restaurantos.sidebar-collapsed'
@@ -19,6 +21,8 @@ function readCollapsed() {
 export function AppShell() {
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [chromeHidden, setChromeHidden] = useState(false)
+  const shell = useMemo<ShellContextValue>(() => ({ chromeHidden, setChromeHidden }), [chromeHidden])
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((current) => {
@@ -44,25 +48,31 @@ export function AppShell() {
   }, [toggleCollapsed])
 
   return (
-    <div className="flex min-h-dvh">
-      <a
-        href="#main-content"
-        className="fixed top-3 left-3 z-50 -translate-y-20 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:translate-y-0"
-      >
-        Skip to content
-      </a>
+    <ShellContext.Provider value={shell}>
+      <div className="flex min-h-dvh">
+        <a
+          href="#main-content"
+          className="fixed top-3 left-3 z-50 -translate-y-20 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:translate-y-0"
+        >
+          Skip to content
+        </a>
 
-      <DesktopSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
-      <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+        {!chromeHidden && (
+          <>
+            <DesktopSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
+            <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+          </>
+        )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onOpenNav={() => setMobileNavOpen(true)} navOpen={mobileNavOpen} />
-        <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
-          <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 sm:px-6 lg:py-6">
-            <Outlet />
-          </div>
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          {!chromeHidden && <Topbar onOpenNav={() => setMobileNavOpen(true)} navOpen={mobileNavOpen} />}
+          <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
+            <div className={cn('mx-auto w-full', chromeHidden ? 'p-3' : 'max-w-screen-2xl px-4 py-5 sm:px-6 lg:py-6')}>
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </ShellContext.Provider>
   )
 }

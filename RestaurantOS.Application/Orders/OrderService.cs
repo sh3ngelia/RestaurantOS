@@ -14,6 +14,7 @@ public class OrderService : IOrderService
     private readonly IMenuItemRepository _menuItemRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
+    private readonly IKitchenNotifier _kitchenNotifier;                          // 1. ველი
     private readonly IValidator<OpenOrderRequest> _openValidator;
     private readonly IValidator<AddOrderItemRequest> _addItemValidator;
     private readonly IValidator<UpdateOrderItemQuantityRequest> _quantityValidator;
@@ -24,6 +25,7 @@ public class OrderService : IOrderService
         IMenuItemRepository menuItemRepository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUser,
+        IKitchenNotifier kitchenNotifier,                                         // 2. პარამეტრი
         IValidator<OpenOrderRequest> openValidator,
         IValidator<AddOrderItemRequest> addItemValidator,
         IValidator<UpdateOrderItemQuantityRequest> quantityValidator)
@@ -33,6 +35,7 @@ public class OrderService : IOrderService
         _menuItemRepository = menuItemRepository;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _kitchenNotifier = kitchenNotifier;                                       // 3. მინიჭება
         _openValidator = openValidator;
         _addItemValidator = addItemValidator;
         _quantityValidator = quantityValidator;
@@ -56,7 +59,6 @@ public class OrderService : IOrderService
         return await ToResponseAsync(order, cancellationToken);
     }
 
-
     public async Task<OrderResponse> OpenAsync(OpenOrderRequest request, CancellationToken cancellationToken = default)
     {
         await _openValidator.ValidateAndThrowAsync(request, cancellationToken);
@@ -79,9 +81,9 @@ public class OrderService : IOrderService
         _orderRepository.Add(order);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
         return order.ToResponse(table.TableNumber);
     }
-
 
     public async Task<OrderResponse> AddItemAsync(Guid orderId, AddOrderItemRequest request, CancellationToken cancellationToken = default)
     {
@@ -94,7 +96,11 @@ public class OrderService : IOrderService
 
         order.AddItem(menuItem, request.Quantity, request.Course, request.Notes, request.SeatNumber);
 
+        
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        await _kitchenNotifier.OrderChangedAsync(order.Id, order.Items.Select(i => i.StationId), cancellationToken);
+        
         return await ToResponseAsync(order, cancellationToken);
     }
 
@@ -117,9 +123,20 @@ public class OrderService : IOrderService
     public Task<OrderResponse> StartItemAsync(Guid orderId, Guid itemId, CancellationToken cancellationToken = default) =>
         ChangeAsync(orderId, o => o.StartItem(itemId), cancellationToken);
 
-    public Task<OrderResponse> MarkItemReadyAsync(Guid orderId, Guid itemId, CancellationToken cancellationToken = default) =>
-        ChangeAsync(orderId, o => o.MarkItemReady(itemId), cancellationToken);
+    public async Task<OrderResponse> MarkItemReadyAsync(Guid orderId, Guid itemId, CancellationToken cancellationToken = default)
+    {
+        var order = await GetOrderOrThrowAsync(orderId, cancellationToken);
+        order.MarkItemReady(itemId);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        var response = await ToResponseAsync(order, cancellationToken);
+        var item = order.Items.First(i => i.Id == itemId);
+
+        await _kitchenNotifier.OrderChangedAsync(order.Id, order.Items.Select(i => i.StationId), cancellationToken);
+        await _kitchenNotifier.ItemReadyAsync(order.Id, response.TableNumber, item.MenuItemName, cancellationToken);
+
+        return response;
+    }
     public Task<OrderResponse> MarkItemServedAsync(Guid orderId, Guid itemId, CancellationToken cancellationToken = default) =>
         ChangeAsync(orderId, o => o.MarkItemServed(itemId), cancellationToken);
 
@@ -133,12 +150,15 @@ public class OrderService : IOrderService
     public Task<OrderResponse> CancelAsync(Guid orderId, CancellationToken cancellationToken = default) =>
         ChangeAsync(orderId, o => o.Cancel(), cancellationToken);
 
-
     private async Task<OrderResponse> ChangeAsync(Guid orderId, Action<Order> change, CancellationToken cancellationToken)
     {
         var order = await GetOrderOrThrowAsync(orderId, cancellationToken);
         change(order);
+        
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        
+        await _kitchenNotifier.OrderChangedAsync(order.Id, order.Items.Select(i => i.StationId), cancellationToken);
+        
         return await ToResponseAsync(order, cancellationToken);
     }
 

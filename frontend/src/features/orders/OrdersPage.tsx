@@ -17,9 +17,13 @@ import { useNow } from '@/hooks/useNow'
 import { collapseMotion, listItemMotion } from '@/lib/motion'
 import { STATUS_TONE_CLASSES } from '@/lib/status-tones'
 import { cn } from '@/lib/utils'
+import { useRealtime } from '@/realtime/useRealtime'
 import { OrderTableCard } from './components/OrderTableCard'
 import { useOpenOrders } from './hooks'
 import { summarizeOrder } from './rules'
+
+/** How long a table stays highlighted after the kitchen marks one of its items ready. */
+const JUST_READY_MS = 2 * 60_000
 
 interface FloorEntry {
   key: string
@@ -37,6 +41,12 @@ export function OrdersPage() {
   // access (403), the page quietly falls back to open orders alone.
   const tablesQuery = useTables()
   const floorForbidden = isForbidden(tablesQuery.error)
+  const { recentlyReady } = useRealtime()
+  const isJustReady = (order: Order | undefined) => {
+    if (!order) return false
+    const at = recentlyReady.get(order.id)
+    return at !== undefined && now.getTime() - at < JUST_READY_MS && summarizeOrder(order).ready > 0
+  }
 
   const orders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
   const entries = useMemo(() => buildEntries(tablesQuery.data, orders), [tablesQuery.data, orders])
@@ -126,7 +136,13 @@ export function OrdersPage() {
           <AnimatePresence initial={false} mode="popLayout">
             {entries.map((entry) => (
               <motion.li key={entry.key} {...listItemMotion}>
-                <OrderTableCard tableNumber={entry.tableNumber} tableId={entry.tableId} order={entry.order} now={now} />
+                <OrderTableCard
+                  tableNumber={entry.tableNumber}
+                  tableId={entry.tableId}
+                  order={entry.order}
+                  now={now}
+                  justReady={isJustReady(entry.order)}
+                />
               </motion.li>
             ))}
           </AnimatePresence>

@@ -79,22 +79,23 @@ export const MODULES: readonly ModuleDefinition[] = [
   {
     id: 'kitchen',
     title: 'Kitchen Display',
-    description: 'Tickets by station with timers.',
+    description: 'Live tickets by station, and the pass.',
     highlights: ['Tickets by station and course', 'Ticket timers with late highlighting', 'Bump, recall and all-day counts'],
     icon: Flame,
     group: 'Production',
-    roles: ['Kitchen', 'Manager'],
-    status: 'coming-soon',
+    roles: ['Kitchen', 'Bar', 'Manager'],
+    status: 'available',
   },
   {
     id: 'bar',
     title: 'Bar',
-    description: 'Drink tickets and bar stock.',
+    description: 'Live drink tickets for the bar.',
     highlights: ['Drink tickets separate from the kitchen', 'Pour tracking against inventory', 'Tabs for bar seating'],
     icon: Wine,
     group: 'Production',
     roles: ['Bar', 'Manager'],
-    status: 'coming-soon',
+    // The Kitchen Display, opened on a Bar-type station.
+    status: 'available',
   },
   {
     id: 'payments',

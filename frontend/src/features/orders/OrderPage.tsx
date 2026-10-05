@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, CircleAlert, CircleCheck, Lock, RefreshCw, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -18,6 +18,7 @@ import { formatElapsed, formatTime } from '@/lib/dates'
 import { segmentClass, segmentGroupClass } from '@/lib/controls'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useRealtime } from '@/realtime/useRealtime'
 import { AddItemSheet } from './components/AddItemSheet'
 import { MenuBrowser } from './components/MenuBrowser'
 import { Ticket } from './components/Ticket'
@@ -35,6 +36,11 @@ export function OrderPage() {
   const permissions = useOrderPermissions()
   const query = useOrder(orderId)
   const order = query.data
+  const { acknowledgeReady } = useRealtime()
+  // Opening the order counts as having seen its "just ready" highlight on the overview.
+  useEffect(() => {
+    if (orderId) acknowledgeReady(orderId)
+  }, [orderId, acknowledgeReady])
   useDocumentTitle(order?.tableNumber ? `Table ${order.tableNumber}` : 'Order')
 
   const orderAction = useOrderAction()

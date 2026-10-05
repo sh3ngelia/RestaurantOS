@@ -16,6 +16,9 @@ import { summarizeDay } from '@/features/reservations/summary'
 import { todayKey } from '@/lib/dates'
 import { FAST } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+import { useHubGroup } from '@/realtime/useRealtime'
+import { useActiveStations, useKitchenTickets } from '@/features/kitchen/hooks'
+import { PASS, choiceToView, modeForRole, readChoice, resolveChoice } from '@/features/kitchen/station-choice'
 import { useOpenOrders } from '@/features/orders/hooks'
 import { getOrderPermissions } from '@/features/orders/permissions'
 import { summarizeOrder } from '@/features/orders/rules'
@@ -64,6 +67,8 @@ export function StatsRow({ role }: { role: Role }) {
             <TablesSeatedStat key={stat.label} label={stat.label} />
           ) : stat.live === 'coversTonight' && LIVE_ACCESS.coversTonight(role) ? (
             <CoversTonightStat key={stat.label} label={stat.label} />
+          ) : stat.live === 'openTickets' && (role === 'Kitchen' || role === 'Bar') ? (
+            <StationTicketsStat key={stat.label} label={stat.label} role={role} />
           ) : stat.live === 'openTickets' && LIVE_ACCESS.openTickets(role) ? (
             <OpenTicketsStat key={stat.label} label={stat.label} />
           ) : (
@@ -212,6 +217,46 @@ function CoversTonightStat({ label }: { label: string }) {
           ? `${label}: ${summary.coversExpected} covers expected, ${summary.coversArrived} guests arrived. Open reservations.`
           : `${label}. Open reservations.`
       }
+    >
+      {body}
+    </StatLink>
+  )
+}
+
+/**
+ * Kitchen and Bar: tickets waiting on this device's Kitchen Display station (the one it
+ * remembers, else the role's default). Joins that station's hub group so the count stays live.
+ */
+function StationTicketsStat({ label, role }: { label: string; role: Role }) {
+  const mode = modeForRole(role)
+  const stations = useActiveStations()
+  const choice = stations.isSuccess ? resolveChoice(readChoice(mode), mode, role, stations.active) : null
+  const view = choice ? choiceToView(choice) : null
+  useHubGroup(view)
+  const tickets = useKitchenTickets(view)
+  const where = choice === PASS ? 'at the pass' : `on ${stations.active.find((s) => s.id === choice)?.name ?? 'your station'}`
+  const count = tickets.data?.length ?? 0
+
+  let body: ReactNode
+  if (stations.isPending || tickets.isPending) {
+    body = <StatLoading />
+  } else if (stations.isError || tickets.isError) {
+    body = <p className="mt-1 text-sm text-muted-foreground">Couldn’t load tickets.</p>
+  } else {
+    body = (
+      <>
+        <p className={statValue}>{count}</p>
+        <p className={statCaption}>{where}</p>
+      </>
+    )
+  }
+
+  return (
+    <StatLink
+      to={`/m/${mode}`}
+      label={label}
+      busy={tickets.isPending}
+      ariaLabel={tickets.isSuccess ? `${label}: ${count} ${where}. Open the Kitchen Display.` : `${label}. Open the Kitchen Display.`}
     >
       {body}
     </StatLink>
