@@ -12,7 +12,7 @@ public class OrdersController : ControllerBase
 {
     private const string FloorRoles = $"{nameof(UserRole.Waiter)},{nameof(UserRole.Manager)}";
     private const string ProductionRoles = $"{nameof(UserRole.Kitchen)},{nameof(UserRole.Bar)},{nameof(UserRole.Manager)}";
-
+    private const string FireRoles = $"{nameof(UserRole.Waiter)},{nameof(UserRole.Kitchen)},{nameof(UserRole.Manager)}";
     private readonly IOrderService _orderService;
 
     public OrdersController(IOrderService orderService)
@@ -58,7 +58,7 @@ public class OrdersController : ControllerBase
         Ok(await _orderService.SendRoundAsync(id, ct));
 
     [HttpPost("{id:guid}/fire-next")]
-    [Authorize(Roles = FloorRoles)]
+    [Authorize(Roles = FireRoles)]
     public async Task<ActionResult<OrderResponse>> FireNextCourse(Guid id, CancellationToken ct) =>
         Ok(await _orderService.FireNextCourseAsync(id, ct));
 

@@ -18,6 +18,9 @@ public class KitchenController : ControllerBase
     }
 
     [HttpGet("tickets")]
-    public async Task<ActionResult<IReadOnlyList<KitchenTicketResponse>>> GetTickets([FromQuery] Guid? stationId, CancellationToken ct) =>
-        Ok(await _kitchenService.GetTicketsAsync(stationId, ct));
+    public async Task<ActionResult<IReadOnlyList<KitchenTicketResponse>>> GetTickets(
+    [FromQuery] Guid? stationId,
+    [FromQuery] PreparationStation? type,
+    CancellationToken ct) =>
+    Ok(await _kitchenService.GetTicketsAsync(stationId, type, ct));
 }

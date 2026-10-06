@@ -259,7 +259,8 @@ The waiter's screen. The API allows Waiter and Manager on the floor endpoints, s
 
 ### Overview (`/m/orders`)
 
-- **The grid:** a card for every seated table. A table with an open order shows the order number, line count, total, how long it has been open, and a status summary such as "1 ready · 1 preparing · 2 held". A seated table without an order offers **Start order**.
+- **The grid:** a card for every seated table. A table with an open order shows the order number, line count, total, how long it has been open, and a status summary such as "1 ready · 3 unsent · 1 preparing · Mains held · 18 min". A seated table without an order offers **Start order**.
+- **What needs the waiter:** "N unsent" counts Draft items still on the ticket, in the warning tone (the accent as an outline, quieter than the solid "ready" chip). "Mains held · 18 min" names the next held course and the minutes since the course before it was fired, so the waiter can judge when to fire.
 - **Ready food stands out:** an "At the pass" strip at the top lists every table with food ready, and those cards take the accent. When the kitchen marks an item ready (the `ItemReady` event), that table's card also gets an accent ring and a "Just ready" chip for two minutes, or until the order is opened.
 - **Floor access:** Waiters and Managers can read the floor (`GET /api/tables`), so every occupied table appears. If a role ever lost that access (403), the overview stops refetching it and quietly falls back to open orders.
 - **Clear table:** a seated table without an order also offers **Clear table** (`POST /api/tables/{id}/free`), which Waiters may call. It is not offered on tables with an open order, so a ticket can't be orphaned. Waiters are never shown Seat or Hold; the API refuses those for them.
@@ -291,6 +292,7 @@ Two panes on tablets and desktops (menu left, ticket right). On phones a Menu / 
 
 - **Footer:** the total in EUR, **Send N** (enabled only when there are new lines), and **Fire mains** / **Fire desserts** while held items exist. The label comes from the next held course.
 - **Header:** **Close order** stays disabled until the API would accept it, with a tooltip giving the reason ("2 items are still to be served or cancelled."). **Cancel order** appears only while nothing has been sent.
+- **Leaving with unsent items:** navigating away from an order that has Draft items asks first: "3 items have not been sent to the kitchen", with **Send now** (sends the round, then leaves), **Leave without sending** and **Stay** (also Esc). Changing only the query string, closing or cancelling the order, and signing out never ask. Reloading or closing the tab gets the browser's own "Leave site?" prompt, whose wording browsers don't let the app change. The guard is [useUnsentItemsGuard](src/features/orders/useUnsentItemsGuard.ts), built on React Router's `useBlocker`.
 
 **Rules mirrored from the domain.** [rules.ts](src/features/orders/rules.ts) decides which buttons to offer from the statuses the API reports. It never predicts new statuses:
 - **Fire next:** the button appears while any item is Held and is labelled after the lowest held course.
@@ -334,21 +336,25 @@ The screens at the stations and the pass, for Kitchen, Bar and Manager (the role
 - **Tickets** run left to right, oldest first, and wrap to fill the screen. Each shows the table number large, the order number small, and the time since it was fired as mm:ss, ticking every second.
 - **Time states:** under 10 minutes is normal; from 10 minutes the timer and frame turn to the accent; from 15 minutes they turn red, with "Late" written out. The thresholds are `TICKET_WARNING_MINUTES` and `TICKET_LATE_MINUTES` in [rules.ts](src/features/kitchen/rules.ts).
 - **Lines** are grouped by course: quantity, name, seat, notes, and allergens as large red text tags with a warning icon. Allergens are never shown by colour alone.
+- **Held items** (sent, but waiting for their course to be fired; `firedAt` is null) sit in a muted "Mains on hold" group at the bottom of their ticket, with no actions: the API refuses to start them. A ticket with only held items has nothing to cook, so it shows "On hold" instead of a timer, is drawn muted and dashed, and comes after the tickets being cooked. The ticket count in the header counts the two apart ("4 tickets · 1 on hold").
 
 **Station screen.**
 - **Tap to advance:** tap a line to move it on. Waiting (`Pending`) items show **Start**, which moves them to Preparing (`POST …/start`); Preparing items show **Ready** (`POST …/ready`). Ready items leave the station's screen, and an emptied ticket leaves with them.
-- **Bump ticket** marks every remaining item on the ticket ready.
+- **Bump ticket** marks every remaining fired item on the ticket ready. Held items stay, so a ticket can turn into an on-hold ticket rather than disappear.
 - **Optimistic:** every cached ticket list (each station and the pass) changes at once. If the API refuses, everything rolls back and the 400 `detail` appears as a toast. A bump sends one request per item; if any of them fails, the whole bump rolls back and the refetch shows what actually went through.
 - **No double steps:** a line ignores taps while its request is in flight, so a double tap can't skip from Waiting to Ready.
 
 **Pass screen.**
 - **One card per order:** every fired item with its station name and status (Waiting, Preparing, Ready). Ready lines are tinted in the accent.
 - **Ready to go:** when every fired item in a course is Ready, that course and the card say "Ready to go", and the card is outlined in the accent.
-- **Who can act:** Kitchen and Manager can tap a line to mark it ready. Bar sees the pass read-only.
+- **Held courses:** shown muted at the bottom with their station names, like on station screens. "Ready to go" only looks at fired items.
+- **Fire next:** on a ticket with held items, Kitchen and Manager get **Fire mains** / **Fire desserts**, labelled from the lowest held course, which calls `POST /api/orders/{orderId}/fire-next`. It waits for the server, then refreshes; a refusal shows the 400 `detail` as a toast.
+- **Timing cue:** above the button, how long ago the course before the held one was marked ready ("Starters ready 6 min ago"), or "Starters not all ready yet". Ticket items carry no `readyAt`, so this comes from the order itself (`GET /api/orders/{id}`, cached under the same key `OrderChanged` refreshes), fetched only for tickets with held items.
+- **Who can act:** Kitchen and Manager can tap a line to mark it ready and fire the next course. Bar sees the pass read-only, timing cue included.
 
 **Empty:** "No open tickets".
 
-**Dashboard.** For Kitchen and Bar, "Open tickets" counts the tickets on that device's Kitchen Display station (the remembered one, else the default), names the station, and joins its hub group so the count stays live. Managers keep the open-orders count.
+**Dashboard.** For Kitchen and Bar, "Open tickets" counts the tickets with something to cook on that device's Kitchen Display station (the remembered one, else the default), adds "· N on hold" when some only have held items, names the station, and joins its hub group so the count stays live. Managers keep the open-orders count.
 
 ---
 

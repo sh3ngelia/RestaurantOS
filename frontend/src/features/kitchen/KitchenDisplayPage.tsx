@@ -18,7 +18,7 @@ import { useHubGroup } from '@/realtime/useRealtime'
 import { PassTicket } from './components/PassTicket'
 import { StationTicket } from './components/StationTicket'
 import { useActiveStations, useAdvanceItems, useItemsInFlight, useKitchenTickets, type AdvanceItems } from './hooks'
-import { canMarkReadyOnPass } from './rules'
+import { canFireFromPass, canMarkReadyOnPass, isHeldOnly, orderForDisplay } from './rules'
 import { PASS, choiceToView, readChoice, resolveChoice, writeChoice, type DisplayMode, type StationChoice } from './station-choice'
 import { useFullScreen } from './useFullScreen'
 
@@ -60,7 +60,9 @@ export function KitchenDisplayPage({ mode }: { mode: DisplayMode }) {
     advance.mutate({ orderId: ticket.orderId, ...change }, { onError: (error) => notifyOrderError(error, failure) })
   }
 
-  const list = tickets.data ?? []
+  // Tickets being cooked first, oldest first; tickets with only held items after them.
+  const list = orderForDisplay(tickets.data ?? [])
+  const onHold = list.filter(isHeldOnly).length
   const viewName = isPass ? 'the pass' : (station?.name ?? '')
 
   return (
@@ -75,7 +77,8 @@ export function KitchenDisplayPage({ mode }: { mode: DisplayMode }) {
         />
         {tickets.isSuccess && (
           <p className="text-lg font-medium tabular-nums" aria-live="polite">
-            {list.length} {list.length === 1 ? 'ticket' : 'tickets'}
+            {list.length - onHold} {list.length - onHold === 1 ? 'ticket' : 'tickets'}
+            {onHold > 0 && <span className="text-muted-foreground"> · {onHold} on hold</span>}
           </p>
         )}
         <div className="ml-auto flex items-center gap-2">
@@ -131,6 +134,7 @@ export function KitchenDisplayPage({ mode }: { mode: DisplayMode }) {
                   ticket={ticket}
                   now={now}
                   canMarkReady={canMarkReadyOnPass(role)}
+                  canFire={canFireFromPass(role)}
                   inFlight={inFlight}
                   onReady={(itemIds) => run(ticket, { itemIds, to: 'Ready' })}
                 />

@@ -53,7 +53,7 @@ function OpenOrderCard({ tableNumber, order, now, justReady }: { tableNumber: nu
       </div>
       <div className="mt-auto space-y-2 pt-4">
         <OrderHeadline order={order} />
-        <OrderStatusLine order={order} />
+        <OrderStatusLine order={order} now={now} />
       </div>
     </Link>
   )

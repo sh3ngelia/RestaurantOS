@@ -34,14 +34,19 @@ public class OrderRepository : IOrderRepository
             .IgnoreQueryFilters()
             .CountAsync(o => o.CreatedAt >= sinceUtc, cancellationToken);
 
-    public async Task<IReadOnlyList<Order>> GetWithKitchenItemsAsync(Guid? stationId, OrderItemStatus[] statuses, CancellationToken cancellationToken = default) =>
-    await _context.Orders
-        .AsNoTracking()
-        .Include(o => o.Items)
-        .Where(o => o.Status == OrderStatus.Opened &&
-                    o.Items.Any(i => statuses.Contains(i.Status) &&
-                                     (stationId == null || i.StationId == stationId)))
-        .ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<Order>> GetWithKitchenItemsAsync(
+        Guid? stationId,
+        PreparationStation? stationType,
+        OrderItemStatus[] statuses,
+        CancellationToken cancellationToken = default) =>
+        await _context.Orders
+            .AsNoTracking()
+            .Include(o => o.Items)
+            .Where(o => o.Status == OrderStatus.Opened &&
+                        o.Items.Any(i => statuses.Contains(i.Status) &&
+                                         (stationId == null || i.StationId == stationId) &&
+                                         (stationType == null || i.StationType == stationType)))
+            .ToListAsync(cancellationToken);
 
     public void Add(Order order) => _context.Orders.Add(order);
 }

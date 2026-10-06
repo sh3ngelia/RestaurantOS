@@ -3,7 +3,7 @@
  * tones, so "seated", "arrived" and "preparing" share a colour, as do "reserved",
  * "held" and "confirmed". The colours themselves are the --status-* tokens in index.css.
  */
-export type StatusTone = 'neutral' | 'muted' | 'waiting' | 'active' | 'attention' | 'danger'
+export type StatusTone = 'neutral' | 'muted' | 'waiting' | 'active' | 'warning' | 'attention' | 'danger'
 
 interface ToneClasses {
   /** Chip / badge: border, fill and text. */
@@ -40,6 +40,14 @@ export const STATUS_TONE_CLASSES: Record<StatusTone, ToneClasses> = {
     dot: 'bg-status-active',
     text: 'text-status-active',
     surface: 'border-status-active/45 bg-status-active/5',
+  },
+  // The accent as an outline: something that will need action and is easy to forget (unsent items).
+  // Quieter than attention, so it never reads as "ready".
+  warning: {
+    chip: 'border-status-attention/60 bg-status-attention/10 text-status-attention',
+    dot: 'bg-status-attention',
+    text: 'text-status-attention',
+    surface: 'border-status-attention/50 bg-status-attention/5',
   },
   // The loudest tone: solid accent, kept for things that need someone to act now.
   attention: {

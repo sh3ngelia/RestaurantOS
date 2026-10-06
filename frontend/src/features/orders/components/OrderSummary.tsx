@@ -20,16 +20,19 @@ export function OrderHeadline({ order, className }: { order: Order; className?: 
   )
 }
 
-/** Status counts, most urgent first. Ready is the solid accent chip. */
-export function OrderStatusLine({ order, className }: { order: Order; className?: string }) {
-  const parts = summaryParts(summarizeOrder(order))
+/**
+ * Status counts, most urgent first: ready (the solid accent), then unsent (the warning tone).
+ * Pass `now` to show how long a held course has been waiting.
+ */
+export function OrderStatusLine({ order, now, className }: { order: Order; now?: Date; className?: string }) {
+  const parts = summaryParts(order, now)
   if (parts.length === 0) {
     return <span className={cn('block text-xs text-muted-foreground', className)}>Nothing on the ticket yet</span>
   }
   return (
     <span className={cn('flex flex-wrap items-center gap-1', className)}>
       {parts.map((part) => (
-        <StatusChip key={part.key} tone={SUMMARY_TONES[part.key]} dashed={part.key === 'drafts'}>
+        <StatusChip key={part.key} tone={SUMMARY_TONES[part.key]}>
           {part.text}
         </StatusChip>
       ))}

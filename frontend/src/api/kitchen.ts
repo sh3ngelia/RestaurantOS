@@ -3,7 +3,10 @@ import type { Allergen } from './menu'
 import type { Course, OrderItemStatus } from './orders'
 import { parseUtc } from '@/lib/dates'
 
-/** A line on a kitchen ticket. Stations see Pending and InProgress; the pass also sees Ready. */
+/**
+ * A line on a kitchen ticket. Stations see Held, Pending and InProgress; the pass also sees Ready.
+ * Held items were sent but wait for their course to be fired: they have no firedAt and can't be started.
+ */
 export interface KitchenTicketItem {
   id: string
   name: string
@@ -15,17 +18,17 @@ export interface KitchenTicketItem {
   status: OrderItemStatus
   stationId: string
   stationName: string
-  /** UTC ISO, normalised with "Z". */
+  /** UTC ISO, normalised with "Z". Null while the item is Held. */
   firedAt: string | null
 }
 
-/** One order's fired items, as the kitchen sees them. */
+/** One order's items as the kitchen sees them: fired ones, and held ones waiting for their course. */
 export interface KitchenTicket {
   orderId: string
   orderNumber: string
   tableNumber: number | null
-  /** When the ticket was first fired. UTC ISO, normalised with "Z". */
-  firedAt: string
+  /** When the ticket was first fired. UTC ISO, normalised with "Z"; null if nothing on it has been fired. */
+  firedAt: string | null
   items: KitchenTicketItem[]
 }
 
@@ -38,7 +41,7 @@ const utc = (iso: string | null | undefined) => (iso ? parseUtc(iso).toISOString
 function normalise(ticket: KitchenTicket): KitchenTicket {
   return {
     ...ticket,
-    firedAt: utc(ticket.firedAt) ?? ticket.firedAt,
+    firedAt: utc(ticket.firedAt),
     items: (ticket.items ?? []).map((item) => ({ ...item, allergens: item.allergens ?? [], firedAt: utc(item.firedAt) })),
   }
 }

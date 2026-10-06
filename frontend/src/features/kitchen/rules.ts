@@ -36,20 +36,22 @@ export function formatTimer(elapsedMs: number) {
 
 // ── Items ────────────────────────────────────────────────────────────────────
 
-/** Kitchen wording: Pending means the item is waiting for a cook. */
+/** Kitchen wording: Pending means the item is waiting for a cook; Held, for its course to be fired. */
 export const KITCHEN_STATUS_LABELS: Partial<Record<KitchenTicketItem['status'], string>> = {
+  Held: 'On hold',
   Pending: 'Waiting',
   InProgress: 'Preparing',
   Ready: 'Ready',
 }
 
 export const KITCHEN_STATUS_TONES: Partial<Record<KitchenTicketItem['status'], StatusTone>> = {
+  Held: 'muted',
   Pending: 'neutral',
   InProgress: 'active',
   Ready: 'attention',
 }
 
-/** The status a tap moves an item to on a station screen: Pending → InProgress → Ready. */
+/** The status a tap moves an item to on a station screen: Pending → InProgress → Ready. Held items don't move. */
 export function nextStatus(item: KitchenTicketItem): 'InProgress' | 'Ready' | null {
   if (item.status === 'Pending') return 'InProgress'
   if (item.status === 'InProgress') return 'Ready'
@@ -60,9 +62,32 @@ export function groupByCourse(items: KitchenTicketItem[]): { course: Course; ite
   return COURSES.map((course) => ({ course, items: items.filter((i) => i.course === course) })).filter((g) => g.items.length > 0)
 }
 
-/** Courses where everything fired so far is Ready: the pass can send them out. */
+// ── Held items ───────────────────────────────────────────────────────────────
+
+export const isHeld = (item: KitchenTicketItem) => item.status === 'Held'
+
+/** Fired items (to cook or ready) and held ones (waiting for their course), kept apart on the ticket. */
+export function splitHeld(ticket: KitchenTicket) {
+  return { active: ticket.items.filter((i) => !isHeld(i)), held: ticket.items.filter(isHeld) }
+}
+
+/** Nothing on the ticket has been fired yet: shown muted, after the tickets being cooked. */
+export const isHeldOnly = (ticket: KitchenTicket) => ticket.items.length > 0 && ticket.items.every(isHeld)
+
+/** Tickets being cooked first (oldest first, as the API sends them), then tickets only on hold. */
+export function orderForDisplay(tickets: readonly KitchenTicket[]) {
+  return [...tickets.filter((t) => !isHeldOnly(t)), ...tickets.filter(isHeldOnly)]
+}
+
+/** The course fire-next would send: the lowest one with held items. Mirrors the API. */
+export function nextHeldCourse(ticket: KitchenTicket): Course | null {
+  const held = ticket.items.filter(isHeld).map((i) => i.course)
+  return COURSES.find((course) => held.includes(course)) ?? null
+}
+
+/** Courses where everything fired so far is Ready: the pass can send them out. Held items don't count. */
 export function readyCourses(ticket: KitchenTicket): Course[] {
-  return groupByCourse(ticket.items)
+  return groupByCourse(splitHeld(ticket).active)
     .filter((group) => group.items.every((i) => i.status === 'Ready'))
     .map((group) => group.course)
 }
@@ -71,8 +96,13 @@ export function readyCourses(ticket: KitchenTicket): Course[] {
 
 /**
  * Kitchen, Bar and Manager use the Kitchen Display (see config/modules.ts) and may start and
- * ready items at a station. On the pass, only Kitchen and Manager mark items ready.
+ * ready items at a station. On the pass, only Kitchen and Manager mark items ready, and only
+ * they fire the next course (the API allows fire-next for Kitchen, Waiter and Manager).
  */
 export function canMarkReadyOnPass(role: Role) {
+  return role === 'Kitchen' || role === 'Manager'
+}
+
+export function canFireFromPass(role: Role) {
   return role === 'Kitchen' || role === 'Manager'
 }

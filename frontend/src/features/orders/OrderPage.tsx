@@ -22,9 +22,11 @@ import { useRealtime } from '@/realtime/useRealtime'
 import { AddItemSheet } from './components/AddItemSheet'
 import { MenuBrowser } from './components/MenuBrowser'
 import { Ticket } from './components/Ticket'
+import { UnsentItemsDialog } from './components/UnsentItemsDialog'
 import { notifyOrderError, useOrder, useOrderAction } from './hooks'
 import { useOrderPermissions } from './permissions'
 import { canCancelOrder, closeBlocker, draftItems, isOpen, summarizeOrder } from './rules'
+import { useUnsentItemsGuard } from './useUnsentItemsGuard'
 
 type Pane = 'menu' | 'ticket'
 
@@ -51,6 +53,11 @@ export function OrderPage() {
   })
   const [cancelOpen, setCancelOpen] = useState(false)
   const [pane, setPane] = useState<Pane>('menu')
+
+  // Leaving with unsent items asks first (see UnsentItemsDialog).
+  const unsentCount = order && isOpen(order) ? draftItems(order).length : 0
+  const unsentGuard = useUnsentItemsGuard(unsentCount)
+  const [sendingBeforeLeave, setSendingBeforeLeave] = useState(false)
 
   if (query.isPending) {
     return (
@@ -103,6 +110,7 @@ export function OrderPage() {
       {
         onSuccess: (closed) => {
           toast.success(`Order #${closed.orderNumber} closed`, { description: `Table ${closed.tableNumber} · ${formatPrice(closed.totalAmount)}` })
+          unsentGuard.allowNextNavigation()
           navigate('/m/orders')
         },
         onError: (error) => notifyOrderError(error, "Couldn't close the order"),
@@ -115,10 +123,28 @@ export function OrderPage() {
     try {
       const cancelled = await orderAction.mutateAsync({ order, action: { type: 'cancel' } })
       toast.success(`Order #${cancelled.orderNumber} cancelled`)
+      // The unsent items went with the order; don't ask about them on the way out.
+      unsentGuard.allowNextNavigation()
       navigate('/m/orders')
     } catch (error) {
       notifyOrderError(error, "Couldn't cancel the order")
       throw error
+    }
+  }
+
+  async function sendThenLeave() {
+    if (!order) return
+    const count = unsentCount
+    setSendingBeforeLeave(true)
+    try {
+      await orderAction.mutateAsync({ order, action: { type: 'send' } })
+      toast.success(`${count} ${count === 1 ? 'item' : 'items'} sent`)
+      unsentGuard.proceed()
+    } catch (error) {
+      // Stay put with the dialog open, so the waiter can retry or choose another way out.
+      notifyOrderError(error, "Couldn't send the round")
+    } finally {
+      setSendingBeforeLeave(false)
     }
   }
 
@@ -234,6 +260,14 @@ export function OrderPage() {
         description="Nothing has been sent to the kitchen or bar yet, so the whole ticket is discarded."
         confirmLabel="Cancel order"
         onConfirm={cancelOrder}
+      />
+      <UnsentItemsDialog
+        open={unsentGuard.blocked}
+        count={unsentCount}
+        sending={sendingBeforeLeave}
+        onSend={() => void sendThenLeave()}
+        onLeave={unsentGuard.proceed}
+        onStay={unsentGuard.stay}
       />
     </div>
   )

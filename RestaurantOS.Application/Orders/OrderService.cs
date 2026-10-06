@@ -67,7 +67,7 @@ public class OrderService : IOrderService
             ?? throw new NotFoundException("Table", request.TableId);
 
         if (table.Status != TableStatus.Occupied)
-            throw new DomainException($"Seat guests at table {table.TableNumber} before opening an order.");
+            table.Occupy();
 
         if (await _orderRepository.HasOpenOrderForTableAsync(table.Id, cancellationToken))
             throw new ConflictException($"Table {table.TableNumber} already has an open order.");

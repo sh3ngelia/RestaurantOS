@@ -8,6 +8,7 @@ import {
   TICKET_WARNING_MINUTES,
   TIME_STATE_TONES,
   formatTimer,
+  isHeldOnly,
   ticketTimeState,
   type TicketTimeState,
 } from '../rules'
@@ -29,10 +30,14 @@ interface TicketFrameProps {
   children: ReactNode
 }
 
-/** A ticket's card: big table number, small order number and a ticking timer that changes colour as it ages. */
+/**
+ * A ticket's card: big table number, small order number and a ticking timer that changes colour
+ * as it ages. A ticket with only held items has nothing cooking, so it is muted and has no timer.
+ */
 export function TicketFrame({ ticket, now, badge, highlight = false, footer, children }: TicketFrameProps) {
-  const elapsed = now.getTime() - new Date(ticket.firedAt).getTime()
-  const state = ticketTimeState(elapsed)
+  const onHold = isHeldOnly(ticket) || ticket.firedAt === null
+  const elapsed = ticket.firedAt ? now.getTime() - new Date(ticket.firedAt).getTime() : 0
+  const state: TicketTimeState = onHold ? 'normal' : ticketTimeState(elapsed)
   const tone = STATUS_TONE_CLASSES[TIME_STATE_TONES[state]]
   const where = ticket.tableNumber !== null ? `Table ${ticket.tableNumber}` : 'Takeaway'
   const headingId = `ticket-${ticket.orderId}`
@@ -41,8 +46,9 @@ export function TicketFrame({ ticket, now, badge, highlight = false, footer, chi
     <article
       aria-labelledby={headingId}
       className={cn(
-        'flex flex-col overflow-hidden rounded-md border-2 bg-card transition-colors duration-150',
-        highlight ? 'border-status-attention' : FRAME_BORDER[state],
+        'flex flex-col overflow-hidden rounded-md border-2 transition-colors duration-150',
+        onHold ? 'border-dashed border-border bg-card/50 text-muted-foreground' : 'bg-card',
+        highlight ? 'border-status-attention' : !onHold && FRAME_BORDER[state],
       )}
     >
       <header
@@ -69,10 +75,14 @@ export function TicketFrame({ ticket, now, badge, highlight = false, footer, chi
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <p className={cn('text-3xl leading-none font-semibold tabular-nums', state !== 'normal' && tone.text)}>
-            <span className="sr-only">Open for </span>
-            <time dateTime={ticket.firedAt}>{formatTimer(elapsed)}</time>
-          </p>
+          {onHold || !ticket.firedAt ? (
+            <p className="text-xl leading-none font-semibold">On hold</p>
+          ) : (
+            <p className={cn('text-3xl leading-none font-semibold tabular-nums', state !== 'normal' && tone.text)}>
+              <span className="sr-only">Open for </span>
+              <time dateTime={ticket.firedAt}>{formatTimer(elapsed)}</time>
+            </p>
+          )}
           {state !== 'normal' && (
             <p className={cn('text-sm font-semibold', tone.text)}>
               {state === 'late' ? `Late, over ${TICKET_LATE_MINUTES} min` : `Over ${TICKET_WARNING_MINUTES} min`}

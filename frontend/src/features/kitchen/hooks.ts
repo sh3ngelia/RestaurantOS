@@ -102,3 +102,22 @@ export function useItemsInFlight(): ReadonlySet<string> {
   })
   return useMemo(() => new Set(pending.flat()), [pending])
 }
+
+// ── Firing the next course ───────────────────────────────────────────────────
+
+/**
+ * Fire the order's next held course from the pass. Not optimistic: the server decides what
+ * moves (stations that fire immediately are already out), so the screen waits for its answer.
+ */
+export function useFireNext() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (orderId: string) => ordersApi.fireNext(orderId),
+    onSuccess: (order) => queryClient.setQueryData(orderKeys.detail(order.id), order),
+    onSettled: (_data, _error, orderId) => {
+      void queryClient.invalidateQueries({ queryKey: kitchenKeys.all })
+      void queryClient.invalidateQueries({ queryKey: orderKeys.open() })
+      void queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) })
+    },
+  })
+}

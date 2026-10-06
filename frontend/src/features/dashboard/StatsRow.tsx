@@ -18,6 +18,7 @@ import { FAST } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { useHubGroup } from '@/realtime/useRealtime'
 import { useActiveStations, useKitchenTickets } from '@/features/kitchen/hooks'
+import { isHeldOnly } from '@/features/kitchen/rules'
 import { PASS, choiceToView, modeForRole, readChoice, resolveChoice } from '@/features/kitchen/station-choice'
 import { useOpenOrders } from '@/features/orders/hooks'
 import { getOrderPermissions } from '@/features/orders/permissions'
@@ -235,7 +236,9 @@ function StationTicketsStat({ label, role }: { label: string; role: Role }) {
   useHubGroup(view)
   const tickets = useKitchenTickets(view)
   const where = choice === PASS ? 'at the pass' : `on ${stations.active.find((s) => s.id === choice)?.name ?? 'your station'}`
-  const count = tickets.data?.length ?? 0
+  // Tickets with something to cook; ones only waiting for their course are counted apart.
+  const count = tickets.data?.filter((t) => !isHeldOnly(t)).length ?? 0
+  const onHold = (tickets.data?.length ?? 0) - count
 
   let body: ReactNode
   if (stations.isPending || tickets.isPending) {
@@ -246,7 +249,10 @@ function StationTicketsStat({ label, role }: { label: string; role: Role }) {
     body = (
       <>
         <p className={statValue}>{count}</p>
-        <p className={statCaption}>{where}</p>
+        <p className={statCaption}>
+          {where}
+          {onHold > 0 && ` · ${onHold} on hold`}
+        </p>
       </>
     )
   }

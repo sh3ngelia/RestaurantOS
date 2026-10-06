@@ -42,14 +42,20 @@ export function KitchenItem({ item, showStation = false, actionLabel, onAction, 
   const statusLabel = KITCHEN_STATUS_LABELS[item.status]
   const tone = KITCHEN_STATUS_TONES[item.status] ?? 'neutral'
   const ready = item.status === 'Ready'
+  // Held lines recede: their section heading says why. Allergens stay red regardless.
+  const held = item.status === 'Held'
 
   const body = (
     <>
-      <span className="w-10 shrink-0 text-2xl leading-7 font-bold tabular-nums">{item.quantity}×</span>
+      <span className={cn('w-10 shrink-0 leading-7 font-bold tabular-nums', held ? 'text-xl text-muted-foreground' : 'text-2xl')}>
+        {item.quantity}×
+      </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-xl leading-7 font-semibold break-words">{item.name}</span>
+        <span className={cn('block leading-7 font-semibold break-words', held ? 'text-lg text-muted-foreground' : 'text-xl')}>
+          {item.name}
+        </span>
         {(item.seatNumber !== null || item.notes || showStation) && (
-          <span className="mt-0.5 block text-base text-foreground/85">
+          <span className={cn('mt-0.5 block text-base', held ? 'text-muted-foreground' : 'text-foreground/85')}>
             {showStation && <span className="text-muted-foreground">{item.stationName}</span>}
             {showStation && (item.seatNumber !== null || item.notes) && <span aria-hidden="true"> · </span>}
             {item.seatNumber !== null && <span className="font-medium">Seat {item.seatNumber}</span>}
@@ -60,7 +66,7 @@ export function KitchenItem({ item, showStation = false, actionLabel, onAction, 
         <KitchenAllergens item={item} />
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1.5">
-        {statusLabel && (showStation || item.status === 'InProgress') && (
+        {statusLabel && !held && (showStation || item.status === 'InProgress') && (
           <StatusChip tone={tone} className="h-6 px-2 text-sm">
             {statusLabel}
           </StatusChip>
