@@ -19,12 +19,14 @@ import { cn } from '@/lib/utils'
 import { useHubGroup } from '@/realtime/useRealtime'
 import { useActiveStations, useKitchenTickets } from '@/features/kitchen/hooks'
 import { isHeldOnly } from '@/features/kitchen/rules'
-import { PASS, choiceToView, modeForRole, readChoice, resolveChoice } from '@/features/kitchen/station-choice'
+import { choiceLabel, choiceToView, modeForRole, readChoice, resolveChoice } from '@/features/kitchen/station-choice'
+import { useMenuItems } from '@/features/menu/hooks'
+import { getMenuPermissions } from '@/features/menu/permissions'
 import { useOpenOrders } from '@/features/orders/hooks'
 import { getOrderPermissions } from '@/features/orders/permissions'
 import { summarizeOrder } from '@/features/orders/rules'
 
-type LiveSource = 'tablesSeated' | 'coversTonight' | 'openTickets'
+type LiveSource = 'tablesSeated' | 'coversTonight' | 'openTickets' | 'itemsOut'
 
 interface StatDefinition {
   label: string
@@ -39,8 +41,8 @@ const STATS: readonly StatDefinition[] = [
   { label: 'Covers tonight', source: 'Reservations', roles: ['Host', 'Waiter', 'Manager'], live: 'coversTonight' },
   { label: 'Tables seated', source: 'Tables', roles: ['Host', 'Waiter', 'Manager'], live: 'tablesSeated' },
   { label: 'Open tickets', source: 'Orders', roles: ['Waiter', 'Kitchen', 'Bar', 'Manager'], live: 'openTickets' },
+  { label: "Items 86'd", source: 'Menu', roles: ['Kitchen', 'Bar', 'Manager'], live: 'itemsOut' },
   { label: 'Avg. ticket time', source: 'Kitchen Display', roles: ['Kitchen', 'Bar', 'Manager'] },
-  { label: "Items 86'd", source: 'Menu', roles: ['Kitchen', 'Bar'] },
   { label: 'Checks settled', source: 'Payments', roles: ['Waiter', 'Accountant'] },
   { label: 'Net sales', source: 'Payments', roles: ['Manager', 'Accountant'] },
   { label: 'Avg. check', source: 'Reports', roles: ['Accountant'] },
@@ -50,6 +52,7 @@ const LIVE_ACCESS: Record<LiveSource, (role: Role) => boolean> = {
   tablesSeated: (role) => getTablePermissions(role).canUseFloor,
   coversTonight: canUseReservations,
   openTickets: (role) => getOrderPermissions(role).canTakeOrders,
+  itemsOut: (role) => getMenuPermissions(role).canToggleAvailability,
 }
 
 const MAX_STATS = 4
@@ -70,6 +73,8 @@ export function StatsRow({ role }: { role: Role }) {
             <CoversTonightStat key={stat.label} label={stat.label} />
           ) : stat.live === 'openTickets' && (role === 'Kitchen' || role === 'Bar') ? (
             <StationTicketsStat key={stat.label} label={stat.label} role={role} />
+          ) : stat.live === 'itemsOut' && LIVE_ACCESS.itemsOut(role) ? (
+            <ItemsOutStat key={stat.label} label={stat.label} role={role} />
           ) : stat.live === 'openTickets' && LIVE_ACCESS.openTickets(role) ? (
             <OpenTicketsStat key={stat.label} label={stat.label} />
           ) : (
@@ -235,7 +240,7 @@ function StationTicketsStat({ label, role }: { label: string; role: Role }) {
   const view = choice ? choiceToView(choice) : null
   useHubGroup(view)
   const tickets = useKitchenTickets(view)
-  const where = choice === PASS ? 'at the pass' : `on ${stations.active.find((s) => s.id === choice)?.name ?? 'your station'}`
+  const where = choice ? choiceLabel(choice, role, stations.active) : ''
   // Tickets with something to cook; ones only waiting for their course are counted apart.
   const count = tickets.data?.filter((t) => !isHeldOnly(t)).length ?? 0
   const onHold = (tickets.data?.length ?? 0) - count
@@ -262,7 +267,43 @@ function StationTicketsStat({ label, role }: { label: string; role: Role }) {
       to={`/m/${mode}`}
       label={label}
       busy={tickets.isPending}
-      ariaLabel={tickets.isSuccess ? `${label}: ${count} ${where}. Open the Kitchen Display.` : `${label}. Open the Kitchen Display.`}
+      ariaLabel={tickets.isSuccess ? `${label}: ${count} at ${where}. Open the Kitchen Display.` : `${label}. Open the Kitchen Display.`}
+    >
+      {body}
+    </StatLink>
+  )
+}
+
+/**
+ * Unavailable items on the viewer's side of the menu: Kitchen-type for Kitchen, Bar-type for
+ * Bar, every item for a Manager (the same split as who may 86 them). Zero is a real answer.
+ */
+function ItemsOutStat({ label, role }: { label: string; role: Role }) {
+  const items = useMenuItems()
+  const scope = getMenuPermissions(role).availabilityScope
+  const count = (items.data ?? []).filter((i) => !i.isAvailable && (scope === 'all' || i.stationType === scope)).length
+  const side = scope === 'Bar' ? 'drinks' : scope === 'Kitchen' ? 'kitchen dishes' : 'across the menu'
+
+  let body: ReactNode
+  if (items.isPending) {
+    body = <StatLoading />
+  } else if (items.isError) {
+    body = <p className="mt-1 text-sm text-muted-foreground">Couldn’t load the menu.</p>
+  } else {
+    body = (
+      <>
+        <p className={statValue}>{count}</p>
+        <p className={statCaption}>{side}</p>
+      </>
+    )
+  }
+
+  return (
+    <StatLink
+      to="/m/menu"
+      label={label}
+      busy={items.isPending}
+      ariaLabel={items.isSuccess ? `${label}: ${count} ${side}. Open the menu.` : `${label}. Open the menu.`}
     >
       {body}
     </StatLink>

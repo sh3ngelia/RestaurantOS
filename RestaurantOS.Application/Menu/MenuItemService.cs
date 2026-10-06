@@ -3,6 +3,7 @@ using RestaurantOS.Application.Common.Exceptions;
 using RestaurantOS.Application.Common.Interfaces;
 using RestaurantOS.Domain.Common;
 using RestaurantOS.Domain.Entities;
+using RestaurantOS.Domain.Enums;
 
 namespace RestaurantOS.Application.Menu;
 
@@ -15,6 +16,7 @@ public class MenuItemService : IMenuItemService
     private readonly IValidator<CreateMenuItemRequest> _createValidator;
     private readonly IValidator<UpdateMenuItemRequest> _updateValidator;
     private readonly IValidator<ChangePriceRequest> _priceValidator;
+    private readonly ICurrentUserService _currentUser;
 
     public MenuItemService(
         IMenuItemRepository itemRepository,
@@ -23,7 +25,8 @@ public class MenuItemService : IMenuItemService
         IUnitOfWork unitOfWork,
         IValidator<CreateMenuItemRequest> createValidator,
         IValidator<UpdateMenuItemRequest> updateValidator,
-        IValidator<ChangePriceRequest> priceValidator)
+        IValidator<ChangePriceRequest> priceValidator,
+        ICurrentUserService currentUser)
     {
         _itemRepository = itemRepository;
         _categoryRepository = categoryRepository;
@@ -32,6 +35,7 @@ public class MenuItemService : IMenuItemService
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _priceValidator = priceValidator;
+        _currentUser = currentUser;
     }
 
     public async Task<IReadOnlyList<MenuItemResponse>> GetAllAsync(
@@ -135,6 +139,7 @@ public class MenuItemService : IMenuItemService
         CancellationToken cancellationToken = default)
     {
         var item = await GetItemOrThrowAsync(id, cancellationToken);
+        EnsureCanChangeAvailability(item);
 
         if (item.IsAvailable == isAvailable)
             return item.ToResponse();
@@ -175,5 +180,21 @@ public class MenuItemService : IMenuItemService
             throw new DomainException($"Station '{station.Name}' is inactive.");
 
         return station;
+    }
+
+    private void EnsureCanChangeAvailability(MenuItem item)
+    {
+        if (_currentUser.IsInRole(UserRole.Manager))
+            return;
+
+        var allowed = item.Station.Type switch
+        {
+            PreparationStation.Kitchen => _currentUser.IsInRole(UserRole.Kitchen),
+            PreparationStation.Bar => _currentUser.IsInRole(UserRole.Bar),
+            _ => false
+        };
+
+        if (!allowed)
+            throw new ForbiddenException($"You cannot change the availability of {item.Name}.");
     }
 }

@@ -1,4 +1,5 @@
-import type { KitchenTicket, KitchenTicketItem } from '@/api/kitchen'
+import type { KitchenTicket, KitchenTicketItem, KitchenView } from '@/api/kitchen'
+import type { StationType } from '@/api/stations'
 import { COURSES, type Course } from '@/api/orders'
 import type { Role } from '@/config/roles'
 import type { StatusTone } from '@/lib/status-tones'
@@ -92,17 +93,61 @@ export function readyCourses(ticket: KitchenTicket): Course[] {
     .map((group) => group.course)
 }
 
+// ── All day ──────────────────────────────────────────────────────────────────
+
+/** The statuses the all-day count splits into, in reading order. Ready items are done and not counted. */
+export const ALL_DAY_STATUSES = ['InProgress', 'Pending', 'Held'] as const
+export type AllDayStatus = (typeof ALL_DAY_STATUSES)[number]
+
+export const ALL_DAY_LABELS: Record<AllDayStatus, string> = {
+  InProgress: 'cooking',
+  Pending: 'waiting',
+  Held: 'on hold',
+}
+
+export interface AllDayLine {
+  name: string
+  total: number
+  byStatus: Partial<Record<AllDayStatus, number>>
+}
+
+/**
+ * "Pork Mtsvadi: 6 (2 cooking, 4 on hold)": quantities per dish across every ticket on screen,
+ * split by status, largest first. Recomputed from the tickets, so it is as live as they are.
+ */
+export function allDay(tickets: readonly KitchenTicket[]): AllDayLine[] {
+  const lines = new Map<string, AllDayLine>()
+  for (const ticket of tickets) {
+    for (const item of ticket.items) {
+      if (!(ALL_DAY_STATUSES as readonly string[]).includes(item.status)) continue
+      const status = item.status as AllDayStatus
+      const line = lines.get(item.name) ?? { name: item.name, total: 0, byStatus: {} }
+      line.total += item.quantity
+      line.byStatus[status] = (line.byStatus[status] ?? 0) + item.quantity
+      lines.set(item.name, line)
+    }
+  }
+  return [...lines.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+}
+
+/** Station screens and the Kitchen pass get the all-day panel; the wider overviews don't. */
+export function showsAllDay(view: KitchenView) {
+  return view.kind === 'station' || view.type === 'Kitchen'
+}
+
 // ── Permissions ──────────────────────────────────────────────────────────────
 
 /**
- * Kitchen, Bar and Manager use the Kitchen Display (see config/modules.ts) and may start and
- * ready items at a station. On the pass, only Kitchen and Manager mark items ready, and only
- * they fire the next course (the API allows fire-next for Kitchen, Waiter and Manager).
+ * Kitchen, Bar and Manager use the Kitchen Display (see config/modules.ts); at a station, anyone
+ * who can open it may start and ready items. On a pass, items are marked ready by the people who
+ * own that type of station, or a Manager; Managers act on the all-stations view too.
  */
-export function canMarkReadyOnPass(role: Role) {
-  return role === 'Kitchen' || role === 'Manager'
+export function canMarkReadyOnPass(role: Role, type: StationType | null) {
+  if (role === 'Manager') return true
+  return (type === 'Kitchen' && role === 'Kitchen') || (type === 'Bar' && role === 'Bar')
 }
 
-export function canFireFromPass(role: Role) {
-  return role === 'Kitchen' || role === 'Manager'
+/** Firing the next course belongs to the Kitchen pass, for Kitchen and Manager. */
+export function canFireFromPass(role: Role, type: StationType | null) {
+  return type === 'Kitchen' && (role === 'Kitchen' || role === 'Manager')
 }

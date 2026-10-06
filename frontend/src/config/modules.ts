@@ -83,7 +83,8 @@ export const MODULES: readonly ModuleDefinition[] = [
     highlights: ['Tickets by station and course', 'Ticket timers with late highlighting', 'Bump, recall and all-day counts'],
     icon: Flame,
     group: 'Production',
-    roles: ['Kitchen', 'Bar', 'Manager'],
+    // Bar staff use the Bar module (the same screen, on their own stations), never this one.
+    roles: ['Kitchen', 'Manager'],
     status: 'available',
   },
   {

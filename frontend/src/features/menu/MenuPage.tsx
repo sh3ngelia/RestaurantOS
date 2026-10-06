@@ -15,7 +15,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { isTypingTarget } from '@/lib/dom'
 import { listItemMotion } from '@/lib/motion'
 import { CategoryFormDialog } from './components/CategoryFormDialog'
-import { ALL_CATEGORIES, CategoryNav, type CategoryNavEntry } from './components/CategoryNav'
+import { ALL_CATEGORIES, CategoryNav, DRINKS, type CategoryNavEntry } from './components/CategoryNav'
 import { CategorySection } from './components/CategorySection'
 import { ItemFormSheet } from './components/ItemFormSheet'
 import { MenuSectionNav } from './components/MenuSectionNav'
@@ -64,9 +64,16 @@ export function MenuPage() {
   const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data])
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data])
 
+  // Bar staff open on their own side; everyone else on the whole menu. Either way, all of it is browsable.
+  const defaultView = permissions.availabilityScope === 'Bar' ? DRINKS : ALL_CATEGORIES
   const requestedCategory = searchParams.get('category')
   const activeCategoryId =
-    requestedCategory && categories.some((c) => c.id === requestedCategory) ? requestedCategory : ALL_CATEGORIES
+    requestedCategory === ALL_CATEGORIES ||
+    requestedCategory === DRINKS ||
+    (requestedCategory && categories.some((c) => c.id === requestedCategory))
+      ? requestedCategory
+      : defaultView
+  const isRealCategory = activeCategoryId !== ALL_CATEGORIES && activeCategoryId !== DRINKS
 
   const countByCategory = useMemo(() => {
     const counts = new Map<string, number>()
@@ -75,23 +82,33 @@ export function MenuPage() {
   }, [items])
 
   const query = normalize(deferredSearch.trim())
+  const drinksOnly = activeCategoryId === DRINKS
   const groups = useMemo(
     () =>
       categories
-        .filter((category) => activeCategoryId === ALL_CATEGORIES || category.id === activeCategoryId)
+        .filter((category) => !isRealCategory || category.id === activeCategoryId)
         .map((category) => ({
           category,
           items: items
-            .filter((item) => item.categoryId === category.id && (!query || normalize(item.name).includes(query)))
+            .filter(
+              (item) =>
+                item.categoryId === category.id &&
+                (!drinksOnly || item.stationType === 'Bar') &&
+                (!query || normalize(item.name).includes(query)),
+            )
             .sort((a, b) => a.name.localeCompare(b.name)),
         }))
-        // While searching, hide categories with no matches; otherwise show them with an empty state.
-        .filter((group) => !query || group.items.length > 0),
-    [categories, items, activeCategoryId, query],
+        // While searching, and in the Drinks view, hide categories with nothing to show;
+        // otherwise show them with an empty state.
+        .filter((group) => !(query || drinksOnly) || group.items.length > 0),
+    [categories, items, activeCategoryId, isRealCategory, drinksOnly, query],
   )
 
+  const drinkCount = items.filter((item) => item.stationType === 'Bar').length
   const navEntries: CategoryNavEntry[] = [
     { id: ALL_CATEGORIES, label: 'All', count: items.length },
+    // Shown when there are drinks, and always to the bar, whose default view it is.
+    ...(drinkCount > 0 || defaultView === DRINKS ? [{ id: DRINKS, label: 'Drinks', count: drinkCount }] : []),
     ...categories.map((c) => ({ id: c.id, label: c.name, count: countByCategory.get(c.id) ?? 0 })),
   ]
   const matchCount = groups.reduce((sum, group) => sum + group.items.length, 0)
@@ -119,7 +136,7 @@ export function MenuPage() {
     setItemSheet({
       open: true,
       item: null,
-      categoryId: categoryId ?? (activeCategoryId === ALL_CATEGORIES ? undefined : activeCategoryId),
+      categoryId: categoryId ?? (isRealCategory ? activeCategoryId : undefined),
     })
   }
 
@@ -186,9 +203,11 @@ export function MenuPage() {
         {!permissions.canManage && (
           <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted-foreground">
             <Eye className="size-3.5" aria-hidden="true" />
-            {permissions.canToggleAvailability
-              ? 'You can mark items as 86’d. Only managers can change the menu.'
-              : 'View only. Only managers can change the menu.'}
+            {permissions.availabilityScope === 'Bar'
+              ? 'You can mark drinks as 86’d.'
+              : permissions.availabilityScope === 'Kitchen'
+                ? 'You can mark kitchen dishes as 86’d.'
+                : 'View only. Only managers can change the menu.'}
           </p>
         )}
       </PageHeader>
@@ -236,6 +255,7 @@ export function MenuPage() {
           <CategoryNav
             entries={navEntries}
             activeId={activeCategoryId}
+            defaultId={defaultView}
             className="sticky top-14 z-20 -mx-4 mb-4 border-b border-border bg-background px-4 py-2 sm:-mx-6 sm:px-6 lg:top-20 lg:mx-0 lg:mb-0 lg:self-start lg:border-0 lg:bg-transparent lg:p-0"
           />
 
@@ -294,12 +314,18 @@ export function MenuPage() {
               <EmptyState
                 icon={SearchX}
                 title="No matches"
-                description={`No items${activeCategoryId === ALL_CATEGORIES ? '' : ' in this category'} have a name containing “${deferredSearch.trim()}”.`}
+                description={`No ${drinksOnly ? 'drinks' : 'items'}${isRealCategory ? ' in this category' : ''} have a name containing “${deferredSearch.trim()}”.`}
                 action={
                   <Button variant="outline" onClick={() => setSearch('')}>
                     Clear search
                   </Button>
                 }
+              />
+            ) : drinksOnly && matchCount === 0 ? (
+              <EmptyState
+                icon={BookOpen}
+                title="No drinks on the menu"
+                description="Items on a Bar-type station appear here."
               />
             ) : (
               <LayoutGroup>

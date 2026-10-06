@@ -4,7 +4,7 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 
-import { kitchenKeys, type KitchenView } from '@/api/kitchen'
+import { kitchenKeys } from '@/api/kitchen'
 import { orderKeys } from '@/api/orders'
 import { tableKeys } from '@/api/tables'
 import { useAuth } from '@/features/auth/useAuth'
@@ -15,6 +15,7 @@ import {
   joinGroup,
   leaveGroup,
   retryDelay,
+  type HubGroup,
   type ItemReadyEvent,
   type OrderChangedEvent,
 } from './connection'
@@ -63,7 +64,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [recentlyReady, setRecentlyReady] = useState<ReadonlyMap<string, number>>(() => new Map())
 
   const connectionRef = useRef<HubConnection | null>(null)
-  const groupsRef = useRef(new Map<string, { group: KitchenView; count: number }>())
+  const groupsRef = useRef(new Map<string, { group: HubGroup; count: number }>())
 
   useEffect(() => {
     if (!token) return
@@ -143,7 +144,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     }
   }, [token, role, queryClient])
 
-  const acquireGroup = useCallback((group: KitchenView) => {
+  const acquireGroup = useCallback((group: HubGroup) => {
     const key = groupKey(group)
     const entry = groupsRef.current.get(key)
     if (entry) {

@@ -18,6 +18,7 @@ import { collapseMotion, listItemMotion } from '@/lib/motion'
 import { STATUS_TONE_CLASSES } from '@/lib/status-tones'
 import { cn } from '@/lib/utils'
 import { useRealtime } from '@/realtime/useRealtime'
+import { FreeTableCard } from './components/FreeTableCard'
 import { OrderTableCard } from './components/OrderTableCard'
 import { useOpenOrders } from './hooks'
 import { summarizeOrder } from './rules'
@@ -32,7 +33,10 @@ interface FloorEntry {
   order?: Order
 }
 
-/** The waiter's overview: every seated table, with its open order or a way to start one. */
+/**
+ * The waiter's overview: seated tables first, with their open order or a way to start one,
+ * then every free table, which a waiter can seat by starting an order (walk-ins).
+ */
 export function OrdersPage() {
   useDocumentTitle('Orders')
   const now = useNow(30_000)
@@ -50,6 +54,7 @@ export function OrdersPage() {
 
   const orders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
   const entries = useMemo(() => buildEntries(tablesQuery.data, orders), [tablesQuery.data, orders])
+  const freeTables = useMemo(() => (tablesQuery.data ?? []).filter((t) => isFree(t, orders)), [tablesQuery.data, orders])
   const readyOrders = orders
     .map((order) => ({ order, ready: summarizeOrder(order).ready }))
     .filter((r) => r.ready > 0)
@@ -69,7 +74,7 @@ export function OrdersPage() {
                 readyOrders.length
                   ? ` · ${readyOrders.length} ${readyOrders.length === 1 ? 'table has' : 'tables have'} food ready`
                   : ''
-              }`
+              }${freeTables.length ? ` · ${freeTables.length} free ${freeTables.length === 1 ? 'table' : 'tables'}` : ''}`
         }
       />
 
@@ -121,35 +126,66 @@ export function OrdersPage() {
             </Button>
           }
         />
-      ) : entries.length === 0 ? (
+      ) : entries.length === 0 && freeTables.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title={floorForbidden ? 'No open orders' : 'No seated tables'}
+          title={floorForbidden ? 'No open orders' : 'No tables'}
           description={
-            floorForbidden
-              ? 'Orders started for your tables will appear here.'
-              : 'Seated tables appear here.'
+            floorForbidden ? 'Orders started for your tables will appear here.' : 'A manager needs to add tables first.'
           }
         />
       ) : (
-        <ul aria-label="Seated tables" className={TABLE_GRID}>
-          <AnimatePresence initial={false} mode="popLayout">
-            {entries.map((entry) => (
-              <motion.li key={entry.key} {...listItemMotion}>
-                <OrderTableCard
-                  tableNumber={entry.tableNumber}
-                  tableId={entry.tableId}
-                  order={entry.order}
-                  now={now}
-                  justReady={isJustReady(entry.order)}
-                />
-              </motion.li>
-            ))}
-          </AnimatePresence>
-        </ul>
+        <div className="space-y-5">
+          {entries.length > 0 && (
+            <section aria-labelledby={freeTables.length > 0 ? 'seated-heading' : undefined} className="space-y-2">
+              {freeTables.length > 0 && (
+                <h2 id="seated-heading" className="text-sm font-semibold">
+                  Seated
+                </h2>
+              )}
+              <ul aria-label={freeTables.length > 0 ? undefined : 'Seated tables'} className={TABLE_GRID}>
+                <AnimatePresence initial={false} mode="popLayout">
+                  {entries.map((entry) => (
+                    <motion.li key={entry.key} {...listItemMotion}>
+                      <OrderTableCard
+                        tableNumber={entry.tableNumber}
+                        tableId={entry.tableId}
+                        order={entry.order}
+                        now={now}
+                        justReady={isJustReady(entry.order)}
+                      />
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </ul>
+            </section>
+          )}
+
+          {freeTables.length > 0 && (
+            <section aria-labelledby="free-heading" className="space-y-2">
+              <h2 id="free-heading" className="text-sm font-semibold">
+                Free tables
+              </h2>
+              <ul className={TABLE_GRID}>
+                <AnimatePresence initial={false} mode="popLayout">
+                  {freeTables.map((table) => (
+                    <motion.li key={table.id} {...listItemMotion}>
+                      <FreeTableCard table={table} />
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </ul>
+            </section>
+          )}
+        </div>
       )}
     </div>
   )
+}
+
+/** Not seated and without an open order: a waiter can seat it by starting an order. */
+function isFree(table: DiningTable, orders: Order[]) {
+  return table.status !== 'Occupied' && !orders.some((o) => o.tableId === table.id)
 }
 
 /** Seated tables plus any table with an open order; orders alone when the floor isn't readable. */

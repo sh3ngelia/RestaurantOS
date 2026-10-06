@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useMutation, useMutationState, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 
+import { ApiError } from '@/api/errors'
 import { kitchenApi, kitchenKeys, type KitchenTicket, type KitchenView } from '@/api/kitchen'
 import { orderKeys, ordersApi } from '@/api/orders'
 import { useStations } from '@/features/stations/hooks'
@@ -8,10 +9,21 @@ import { useStations } from '@/features/stations/hooks'
 /** Tickets refresh on the hub's OrderChanged event; this slow refetch only covers a dropped connection. */
 const FALLBACK_REFETCH_MS = 60_000
 
-export function useKitchenTickets(view: KitchenView | null) {
+/**
+ * The tickets for one view. `onForbidden` runs when the API refuses the view for this role (403),
+ * at the moment the answer arrives, so the screen can switch away; 4xx answers aren't retried.
+ */
+export function useKitchenTickets(view: KitchenView | null, { onForbidden }: { onForbidden?: (error: ApiError) => void } = {}) {
   return useQuery({
     queryKey: view ? kitchenKeys.tickets(view) : [...kitchenKeys.all, 'tickets', 'none'],
-    queryFn: ({ signal }) => kitchenApi.tickets(view as KitchenView, signal),
+    queryFn: async ({ signal }) => {
+      try {
+        return await kitchenApi.tickets(view as KitchenView, signal)
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 403) onForbidden?.(error)
+        throw error
+      }
+    },
     enabled: view !== null,
     refetchInterval: FALLBACK_REFETCH_MS,
     refetchOnWindowFocus: true,
@@ -37,9 +49,9 @@ export interface AdvanceItems {
 const ADVANCE_KEY = ['kitchen', 'advance'] as const
 
 /**
- * Applies the change to one cached ticket list. Stations only list Pending and InProgress
+ * Applies the change to one cached ticket list. Stations list Held, Pending and InProgress
  * items, so a ready item leaves the station screen (and an emptied ticket with it);
- * the pass keeps it, marked Ready.
+ * the passes keep it, marked Ready. Held items are never touched here.
  */
 function patchTickets(tickets: KitchenTicket[] | undefined, isPass: boolean, { orderId, itemIds, to }: AdvanceItems) {
   if (!tickets) return tickets

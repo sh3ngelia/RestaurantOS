@@ -1,7 +1,6 @@
 import { HubConnectionBuilder, LogLevel, type HubConnection, type IRetryPolicy } from '@microsoft/signalr'
 
 import { API_BASE_URL } from '@/api/client'
-import type { KitchenView } from '@/api/kitchen'
 import { readSession } from '@/features/auth/session'
 
 /** Same origin in development (Vite proxies /hubs with WebSockets), VITE_API_URL in production. */
@@ -42,14 +41,20 @@ export interface ItemReadyEvent {
   itemName: string
 }
 
-export function groupKey(group: KitchenView) {
+/**
+ * A hub group: one station, or the pass. Every pass-style screen (a type's pass, all stations)
+ * listens on the single pass group; events are only "refetch" signals, so that is enough.
+ */
+export type HubGroup = { kind: 'station'; stationId: string } | { kind: 'pass' }
+
+export function groupKey(group: HubGroup) {
   return group.kind === 'station' ? `station:${group.stationId}` : 'pass'
 }
 
-export function joinGroup(connection: HubConnection, group: KitchenView) {
+export function joinGroup(connection: HubConnection, group: HubGroup) {
   return group.kind === 'station' ? connection.invoke('JoinStation', group.stationId) : connection.invoke('JoinPass')
 }
 
-export function leaveGroup(connection: HubConnection, group: KitchenView) {
+export function leaveGroup(connection: HubConnection, group: HubGroup) {
   return group.kind === 'station' ? connection.invoke('LeaveStation', group.stationId) : connection.invoke('LeavePass')
 }

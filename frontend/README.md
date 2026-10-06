@@ -259,11 +259,12 @@ The waiter's screen. The API allows Waiter and Manager on the floor endpoints, s
 
 ### Overview (`/m/orders`)
 
-- **The grid:** a card for every seated table. A table with an open order shows the order number, line count, total, how long it has been open, and a status summary such as "1 ready · 3 unsent · 1 preparing · Mains held · 18 min". A seated table without an order offers **Start order**.
+- **The grid:** every table, seated ones first. A table with an open order shows the order number, line count, total, how long it has been open, and a status summary such as "1 ready · 3 unsent · 1 preparing · Mains held · 18 min". A seated table without an order offers **Start order**.
+- **Free tables** follow under their own heading, with seats, "Held" or the next booking, and **Seat and start order**: `POST /api/orders` on a free or held table seats it in the same transaction, which is how a waiter seats a walk-in. If a booking is due (the table is `Reserved` with a `nextReservation`), the card shows the guest, party and time, and seating asks first: "Nino Beridze (party of 4) is booked here for 19:30. Seating a walk-in now may leave them without a table." Opening an order refreshes the tables list; a 409 (someone else just opened one) appears as a toast.
 - **What needs the waiter:** "N unsent" counts Draft items still on the ticket, in the warning tone (the accent as an outline, quieter than the solid "ready" chip). "Mains held · 18 min" names the next held course and the minutes since the course before it was fired, so the waiter can judge when to fire.
 - **Ready food stands out:** an "At the pass" strip at the top lists every table with food ready, and those cards take the accent. When the kitchen marks an item ready (the `ItemReady` event), that table's card also gets an accent ring and a "Just ready" chip for two minutes, or until the order is opened.
 - **Floor access:** Waiters and Managers can read the floor (`GET /api/tables`), so every occupied table appears. If a role ever lost that access (403), the overview stops refetching it and quietly falls back to open orders.
-- **Clear table:** a seated table without an order also offers **Clear table** (`POST /api/tables/{id}/free`), which Waiters may call. It is not offered on tables with an open order, so a ticket can't be orphaned. Waiters are never shown Seat or Hold; the API refuses those for them.
+- **Clear table:** a seated table without an order also offers **Clear table** (`POST /api/tables/{id}/free`), which Waiters may call. It is not offered on tables with an open order, so a ticket can't be orphaned. Waiters are never shown Hold or the table-only Seat action; the API refuses those for them, and they seat tables by starting an order instead.
 
 ### Order screen (`/m/orders/:orderId`)
 
@@ -322,13 +323,21 @@ One permission mismatch remains in the current API. The page degrades gracefully
 
 ## Kitchen Display (`/m/kitchen`, `/m/bar`)
 
-The screens at the stations and the pass, for Kitchen, Bar and Manager (the roles `GET /api/kitchen/tickets` allows). The **Bar** module opens the same screen, starting on a Bar-type station.
+The screens at the stations and the passes. **Kitchen Display** (`/m/kitchen`) is for Kitchen and Manager; **Bar** (`/m/bar`) is the same screen for Bar and Manager, starting on a Bar-type station. Bar staff never see the Kitchen Display: not in the sidebar, on the dashboard or through the route guard, all of which read [config/modules.ts](src/config/modules.ts). Each screen shows only its own work: `GET /api/kitchen/tickets` returns, per order, just the items for the station or type asked for, never the whole order. Waiters still see whole orders on their order screen.
 
-**Choosing a screen.**
-- **The picker:** the active stations in display order, plus **Pass — all stations**.
+**What each role can open.** The API enforces this (403 with a `detail` otherwise); [station-choice.ts](src/features/kitchen/station-choice.ts) mirrors it so the picker only offers what will load.
+
+| Role | Picker | Request |
+| ---- | ------ | ------- |
+| Kitchen | Kitchen-type stations, **Kitchen pass** | `?stationId=` / `?type=Kitchen` |
+| Bar (on `/m/bar`) | Bar-type stations, plus **All bars** when there is more than one. With exactly one, it opens directly and the picker is replaced by its name | `?stationId=` / `?type=Bar` |
+| Manager | Every station, **Kitchen pass**, **Bar overview**, **All stations** | `?stationId=` / `?type=Kitchen` / `?type=Bar` / no parameters |
+
 - **Remembered per device:** the choice is kept in `localStorage`, separately for the Kitchen Display and Bar entries, so a wall tablet reopens on its station.
-- **Defaults:** without a remembered choice, or when the remembered station has been deactivated, Kitchen users get the first Kitchen-type station and Bar users the first Bar-type station. Managers get the pass, and the Bar entry always starts on the first Bar-type station.
-- **Switching** leaves the old hub group and joins the new one.
+- **Defaults:** Kitchen users get the first Kitchen-type station, else the Kitchen pass; Bar users the first Bar-type station, else All bars. Managers get All stations, or the first Bar-type station on the Bar entry.
+- **Migration:** a remembered value the role may no longer open (the old all-stations "Pass" on a cook's tablet, another type's station, a deactivated station) falls back to the default, which is then stored in its place.
+- **403:** if the API still refuses a screen, a toast shows its `detail` and the screen switches to the role default. If the default itself is refused, the `detail` stays on screen.
+- **Switching** leaves the old hub group and joins the new one. Station screens use their station's group; every pass-style screen uses the hub's single pass group, which is enough because events only trigger refetches.
 
 **Built for the wall.**
 - **Readable at a distance:** large type, high contrast and few controls.
@@ -344,13 +353,15 @@ The screens at the stations and the pass, for Kitchen, Bar and Manager (the role
 - **Optimistic:** every cached ticket list (each station and the pass) changes at once. If the API refuses, everything rolls back and the 400 `detail` appears as a toast. A bump sends one request per item; if any of them fails, the whole bump rolls back and the refetch shows what actually went through.
 - **No double steps:** a line ignores taps while its request is in flight, so a double tap can't skip from Waiting to Ready.
 
-**Pass screen.**
-- **One card per order:** every fired item with its station name and status (Waiting, Preparing, Ready). Ready lines are tinted in the accent.
+**All day.** On every station screen and on the Kitchen pass, a compact count of everything on screen per dish, e.g. "Pork Mtsvadi 6 (2 cooking, 4 on hold)", split into the statuses present (cooking, waiting, on hold; Ready items are done and not counted) and sorted by total, largest first. It is computed from the tickets on screen, so it changes with them. On wide screens (from the `xl` breakpoint) it is a side panel beside the tickets; on tablets it is a bar above them showing the top three, which opens into the full list.
+
+**Pass screens** (Kitchen pass, Bar overview, All stations).
+- **One card per order:** every item of that type (or every item, on All stations) with its station name and status (Waiting, Preparing, Ready). Ready lines are tinted in the accent.
 - **Ready to go:** when every fired item in a course is Ready, that course and the card say "Ready to go", and the card is outlined in the accent.
 - **Held courses:** shown muted at the bottom with their station names, like on station screens. "Ready to go" only looks at fired items.
-- **Fire next:** on a ticket with held items, Kitchen and Manager get **Fire mains** / **Fire desserts**, labelled from the lowest held course, which calls `POST /api/orders/{orderId}/fire-next`. It waits for the server, then refreshes; a refusal shows the 400 `detail` as a toast.
+- **Fire next:** on the Kitchen pass only, on a ticket with held items, Kitchen and Manager get **Fire mains** / **Fire desserts**, labelled from the lowest held course, which calls `POST /api/orders/{orderId}/fire-next`. It waits for the server, then refreshes; a refusal shows the 400 `detail` as a toast.
 - **Timing cue:** above the button, how long ago the course before the held one was marked ready ("Starters ready 6 min ago"), or "Starters not all ready yet". Ticket items carry no `readyAt`, so this comes from the order itself (`GET /api/orders/{id}`, cached under the same key `OrderChanged` refreshes), fetched only for tickets with held items.
-- **Who can act:** Kitchen and Manager can tap a line to mark it ready and fire the next course. Bar sees the pass read-only, timing cue included.
+- **Who can act:** on a pass, the people who own that type of station mark items ready (Kitchen on the Kitchen pass, Bar on All bars), and Managers on any pass. Firing belongs to Kitchen and Manager on the Kitchen pass.
 
 **Empty:** "No open tickets".
 
@@ -404,12 +415,17 @@ The first live module. It covers categories and items from `/api/menu`, for Mana
 | Role              | Can do                                                                   |
 | ----------------- | ------------------------------------------------------------------------ |
 | Manager           | Everything: categories, items and stations (create, edit, delete) and inline price edits |
-| Kitchen, Bar      | 86 or un-86 items with the availability switch                           |
+| Kitchen           | 86 or un-86 Kitchen-type items; other items show their availability read-only |
+| Bar               | 86 or un-86 Bar-type items; other items show their availability read-only; opens on the Drinks view |
 | Waiter            | Read-only menu                                                           |
 
 Permissions live in [src/features/menu/permissions.ts](src/features/menu/permissions.ts) and mirror the API's `[Authorize(Roles = …)]` attributes. They only hide controls: the server still decides.
 
-**Layout.** A category list, shown as sticky pill tabs on mobile and a sticky vertical list on desktop, with an "All" option and item counts. The chosen category is kept in `?category=`, so it survives a reload and works with the back button. Items appear as cards grouped under category headings. Search matches on name, ignores case and accents ("creme" finds "Crème brûlée"), focuses with `/` and clears with `Esc`.
+**Layout.** A category list, shown as sticky pill tabs on mobile and a sticky vertical list on desktop, with "All", "Drinks" (every item on a Bar-type station, across categories; shown when there are any) and item counts. The chosen category is kept in `?category=`, so it survives a reload and works with the back button. Bar users open on Drinks and Kitchen users on All; every view stays browsable, and the default view is the bare URL.
+
+**Availability by side.** `PATCH /api/menu/items/{id}/availability` answers 403 unless the item's `stationType` matches the role (Kitchen → Kitchen-type, Bar → Bar-type, Manager → any). The card shows the switch only on the viewer's own items (`canToggleItem` in [permissions.ts](src/features/menu/permissions.ts)); elsewhere it shows "Available" or "Unavailable" as plain text. The hint under the title reads "You can mark kitchen dishes as 86’d." or "You can mark drinks as 86’d." If the server still refuses, the optimistic change rolls back and the 403 `detail` appears as a toast.
+
+**Dashboard.** "Items 86'd" counts unavailable items on the viewer's side (Kitchen-type for Kitchen, Bar-type for Bar, all for Manager), showing 0 when there are none, and links to the menu. Items appear as cards grouped under category headings. Search matches on name, ignores case and accents ("creme" finds "Crème brûlée"), focuses with `/` and clears with `Esc`.
 
 **Item cards** show the name, description, price in EUR, station name (with a kitchen or bar icon from its type), prep time, allergens and availability. An unavailable item is **86'd**: its name is struck through, the card turns muted and dashed, and it gets an "86'd" chip.
 

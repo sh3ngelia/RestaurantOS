@@ -35,7 +35,7 @@ export function useMenuItems() {
 
 // ── Errors ───────────────────────────────────────────────────────────────────
 
-/** Toasts for mutations outside a form: 404 → it's gone, 409 → the server's detail. */
+/** Toasts for mutations outside a form: 404 → it's gone; 403 and 409 → the server's detail. */
 export function notifyMenuError(error: unknown, title: string) {
   if (error instanceof ApiError && error.status === 404) {
     toast.error('Already gone', { description: 'Someone else removed that. The menu has been refreshed.' })

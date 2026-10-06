@@ -1,10 +1,11 @@
 import { apiRequest } from './client'
 import type { Allergen } from './menu'
 import type { Course, OrderItemStatus } from './orders'
+import type { StationType } from './stations'
 import { parseUtc } from '@/lib/dates'
 
 /**
- * A line on a kitchen ticket. Stations see Held, Pending and InProgress; the pass also sees Ready.
+ * A line on a kitchen ticket. Stations see Held, Pending and InProgress; the passes also see Ready.
  * Held items were sent but wait for their course to be fired: they have no firedAt and can't be started.
  */
 export interface KitchenTicketItem {
@@ -22,7 +23,10 @@ export interface KitchenTicketItem {
   firedAt: string | null
 }
 
-/** One order's items as the kitchen sees them: fired ones, and held ones waiting for their course. */
+/**
+ * One order's items as the kitchen sees them, limited to the station or type asked for: never the
+ * whole order. Fired items, and held ones waiting for their course.
+ */
 export interface KitchenTicket {
   orderId: string
   orderNumber: string
@@ -32,8 +36,13 @@ export interface KitchenTicket {
   items: KitchenTicketItem[]
 }
 
-/** Which tickets a screen shows: one station, or the pass (every station). */
-export type KitchenView = { kind: 'station'; stationId: string } | { kind: 'pass' }
+/**
+ * Which tickets a screen shows. The API enforces who may ask for what (403 with a `detail`):
+ * - one station: Kitchen users Kitchen-type stations, Bar users Bar-type, Managers any;
+ * - a pass for one station type (`?type=`): same rule by type;
+ * - every station (`type: null`): Managers only.
+ */
+export type KitchenView = { kind: 'station'; stationId: string } | { kind: 'pass'; type: StationType | null }
 
 const utc = (iso: string | null | undefined) => (iso ? parseUtc(iso).toISOString() : null)
 
@@ -47,14 +56,21 @@ function normalise(ticket: KitchenTicket): KitchenTicket {
 }
 
 export const kitchenApi = {
-  /** Oldest ticket first. Without a station: the pass. */
+  /** Oldest ticket first. */
   tickets: async (view: KitchenView, signal?: AbortSignal) => {
-    const query = view.kind === 'station' ? `?stationId=${encodeURIComponent(view.stationId)}` : ''
+    const query =
+      view.kind === 'station'
+        ? `?stationId=${encodeURIComponent(view.stationId)}`
+        : view.type
+          ? `?type=${view.type}`
+          : ''
     return (await apiRequest<KitchenTicket[]>(`/api/kitchen/tickets${query}`, { signal })).map(normalise)
   },
 }
 
 export const kitchenKeys = {
   all: ['kitchen'] as const,
-  tickets: (view: KitchenView) => [...kitchenKeys.all, 'tickets', view.kind === 'station' ? view.stationId : 'pass'] as const,
+  /** ['kitchen', 'tickets', 'station' | 'pass', stationId | type | 'all'] */
+  tickets: (view: KitchenView) =>
+    [...kitchenKeys.all, 'tickets', view.kind, view.kind === 'station' ? view.stationId : (view.type ?? 'all')] as const,
 }

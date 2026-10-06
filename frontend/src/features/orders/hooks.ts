@@ -60,14 +60,21 @@ function storeOrder(queryClient: QueryClient, order: Order) {
 
 // ── Mutations ────────────────────────────────────────────────────────────────
 
-/** Open an order on an occupied table. */
+/**
+ * Open an order on a table. On a free or held table this also seats it (the API does both in one
+ * transaction), which is how a waiter seats a walk-in. A seated table with an open order is a 409.
+ */
 export function useStartOrder() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (tableId: string) => ordersApi.open(tableId),
     onSuccess: (order) => storeOrder(queryClient, order),
-    // A 409 means someone else opened one; refresh so it appears.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: orderKeys.open() }),
+    onSettled: () => {
+      // A 409 means someone else opened one; refresh so it appears.
+      void queryClient.invalidateQueries({ queryKey: orderKeys.open() })
+      // The table may have just been seated.
+      void queryClient.invalidateQueries({ queryKey: tableKeys.all })
+    },
   })
 }
 

@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { notifyMenuError, useSetAvailability } from '../hooks'
-import type { MenuPermissions } from '../permissions'
+import { canToggleItem, type MenuPermissions } from '../permissions'
 import { STATION_ICONS } from '@/features/stations/icons'
 import { PriceEditor } from './PriceEditor'
 
@@ -79,7 +79,14 @@ export function MenuItemCard({ item, permissions, onEdit, onDelete }: MenuItemCa
       {hasFooter && (
         <div className="mt-auto pt-3">
           <div className="flex min-h-8 items-center justify-between gap-2 border-t border-border pt-2">
-            {permissions.canToggleAvailability ? <AvailabilityToggle item={item} /> : <span />}
+            {canToggleItem(permissions, item) ? (
+              <AvailabilityToggle item={item} />
+            ) : permissions.canToggleAvailability ? (
+              // The other side's item (a drink for the kitchen, a dish for the bar): state only.
+              <AvailabilityState item={item} />
+            ) : (
+              <span />
+            )}
             {permissions.canManage && (
               <div className="flex items-center gap-0.5">
                 <IconAction label={`Edit ${item.name}`} onClick={() => onEdit(item)}>
@@ -97,6 +104,21 @@ export function MenuItemCard({ item, permissions, onEdit, onDelete }: MenuItemCa
   )
 }
 
+/** Availability without the switch, for items another station owns. */
+function AvailabilityState({ item }: { item: MenuItem }) {
+  return (
+    <span className="touch-target flex items-center gap-2 text-[13px] text-muted-foreground">
+      <span
+        className={cn('size-1.5 rounded-full', item.isAvailable ? 'bg-status-active' : 'bg-muted-foreground/50')}
+        aria-hidden="true"
+      />
+      <span className={cn(item.isAvailable && 'text-foreground')}>{item.isAvailable ? 'Available' : 'Unavailable'}</span>
+      <span className="sr-only">. Only {item.stationType === 'Bar' ? 'the bar' : 'the kitchen'} can change this.</span>
+    </span>
+  )
+}
+
+/** The 86 switch. Optimistic; a refusal (403 for another station's item, or anything else) rolls back and shows why. */
 function AvailabilityToggle({ item }: { item: MenuItem }) {
   const setAvailability = useSetAvailability()
 

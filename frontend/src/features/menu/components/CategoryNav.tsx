@@ -4,6 +4,8 @@ import { filterChipClass, filterChipCountClass } from '@/lib/controls'
 import { cn } from '@/lib/utils'
 
 export const ALL_CATEGORIES = 'all'
+/** Every Bar-type item, whatever its category. Category ids are GUIDs, so this can't collide. */
+export const DRINKS = 'drinks'
 
 export interface CategoryNavEntry {
   id: string
@@ -14,11 +16,13 @@ export interface CategoryNavEntry {
 interface CategoryNavProps {
   entries: CategoryNavEntry[]
   activeId: string
+  /** The entry shown when ?category= is absent (Drinks for Bar users, All otherwise); it links to the bare URL. */
+  defaultId: string
   className?: string
 }
 
 /** Horizontal chips on small screens, a vertical list on desktop. The choice lives in ?category=. */
-export function CategoryNav({ entries, activeId, className }: CategoryNavProps) {
+export function CategoryNav({ entries, activeId, defaultId, className }: CategoryNavProps) {
   return (
     <nav aria-label="Menu categories" className={className}>
       <p className="mb-1 hidden px-2.5 text-xs font-medium text-muted-foreground lg:block">
@@ -35,7 +39,7 @@ export function CategoryNav({ entries, activeId, className }: CategoryNavProps) 
           return (
             <li key={entry.id} className="shrink-0">
               <Link
-                to={{ search: entry.id === ALL_CATEGORIES ? '' : `?category=${entry.id}` }}
+                to={{ search: entry.id === defaultId ? '' : `?category=${entry.id}` }}
                 replace
                 preventScrollReset
                 aria-current={active ? 'true' : undefined}
